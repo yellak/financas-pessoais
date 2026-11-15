@@ -78,6 +78,8 @@ npm run dev
 
 Abra o endereço exibido pelo Vite, normalmente `http://localhost:5173`. A página inicial abre `/categorias`. O proxy de desenvolvimento encaminha `/api` para `http://localhost:8080`.
 
+A navegação fica no botão de três pontos no canto direito do cabeçalho, com “Categorias” e, ao final, “Tema”. A opção “Tema” expande as escolhas Azul bebê e Verde e indica a seleção atual. A troca é aplicada imediatamente e salva neste navegador. O menu fecha ao acessar Categorias, clicar fora, sair dele pelo teclado ou pressionar Esc.
+
 A interface lista as categorias e abre janelas modais para cadastrar, editar ou visualizar os detalhes. Os formulários permitem ativar/desativar categorias e exibem os erros dentro da janela; ao salvar com sucesso, a janela fecha e a lista é atualizada. As janelas podem ser fechadas pelo botão de fechar, por Cancelar ou pela tecla Esc, e ficam bloqueadas durante o salvamento. A exclusão continua exigindo confirmação na lista. Há estados de lista vazia, carregamento, sucesso, erros de validação e falhas de conexão.
 
 ### Alterar as cores
@@ -101,9 +103,11 @@ As cores da interface, incluindo as popups e os indicadores de status, ficam nas
 
 As cores de sucesso, erro e status têm variáveis próprias. Ao mudar o tema, ajuste também as cores de hover e foco e mantenha contraste suficiente entre textos e fundos. Com `npm run dev`, basta salvar o arquivo para ver as alterações no navegador, sem reiniciar os serviços. Em produção, gere e publique um novo build do frontend.
 
-### Preparação para trocar o tema pela interface
+### Selecionar o tema pela interface
 
-[`frontend/src/theme.ts`](frontend/src/theme.ts) exporta a lista `temasDisponiveis`, o tipo `Tema`, o `temaPadrao` e a função `aplicarTema`. O frontend aplica `temaPadrao` antes de montar a aplicação. A futura tela de preferências pode usar a lista para preencher um seletor e chamar:
+Use o botão de três pontos do cabeçalho, abra “Tema” e escolha Azul bebê ou Verde. O tema inicial é azul bebê quando ainda não existe uma preferência válida salva. Se o armazenamento do navegador estiver indisponível, a seleção continua funcionando durante o uso da página.
+
+[`frontend/src/theme.ts`](frontend/src/theme.ts) centraliza `temasDisponiveis`, o tipo `Tema`, o `temaPadrao`, o estado reativo `temaAtual` e as funções `inicializarTema` e `aplicarTema`. Antes de montar a aplicação, o frontend restaura a preferência salva no `localStorage`, na chave `financas-pessoais:tema`. Outros componentes também podem chamar:
 
 ```ts
 import { aplicarTema } from '@/theme'
@@ -112,7 +116,7 @@ aplicarTema('verde')
 aplicarTema('azul-bebe')
 ```
 
-A função altera `data-tema` no elemento `html` e o CSS atualiza a página e as popups imediatamente, preservando os dados dos formulários. Para experimentar agora pelo console do navegador, use `document.documentElement.dataset.tema = 'verde'` ou `'azul-bebe'`. O tema inicial continua definido em `temaPadrao`; a preferência ainda não é salva entre acessos.
+A função altera `data-tema` no elemento `html`, atualiza `temaAtual` e salva a preferência. O CSS atualiza a página e as popups imediatamente, preservando os dados dos formulários. Use `aplicarTema` para manter o tema, o seletor e a preferência sincronizados.
 
 ## API de categorias
 

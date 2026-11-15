@@ -1,9 +1,9 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import { aplicarTema, temaPadrao } from './theme'
+import { inicializarTema } from './theme'
 
-aplicarTema(temaPadrao)
+inicializarTema()
 
 const app = createApp(App)
 
