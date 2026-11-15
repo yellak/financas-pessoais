@@ -1,0 +1,99 @@
+:root {
+  /* Cores e referências compartilhadas entre os temas */
+  --cor-perigo: #a3312f;
+  --cor-texto-sobre-perigo: #fff;
+  --cor-superficie: #fff;
+  --cor-fundo-contador: var(--cor-superficie-hover);
+  --cor-texto-erro: #902f2d;
+  --cor-fundo-erro: #fdf2f0;
+  --cor-borda-erro: #f0cec9;
+  --cor-texto-sucesso: #245c48;
+  --cor-fundo-sucesso: #edf7ee;
+  --cor-borda-sucesso: #cce3d0;
+  --cor-fundo-confirmacao-exclusao: #fcf3f1;
+  --cor-borda-confirmacao-exclusao: #f0d7d0;
+}
+
+/* Azul bebê também é aplicado quando data-tema não está definido. */
+:root,
+:root[data-tema='azul-bebe'] {
+  /* Marca e ações */
+  --cor-primaria: #b3d9f2;
+  --cor-primaria-hover: #9ccbed;
+  --cor-texto-sobre-destaque: #1e405b;
+  --cor-link: #2b638b;
+  --cor-destaque: #39698c;
+  --cor-foco: #2e719b;
+
+  /* Fundos, textos e bordas */
+  --cor-fundo: #f0f7fd;
+  --cor-superficie-hover: #e3f1fb;
+  --cor-texto: #243e52;
+  --cor-texto-secundario: #50697d;
+  --cor-texto-auxiliar: #5d7487;
+  --cor-texto-descricao: #526e82;
+  --cor-texto-placeholder: #61788a;
+  --cor-texto-botao-secundario: #355a76;
+  --cor-borda: #d4e5f2;
+  --cor-divisor: #e7f0f8;
+  --cor-borda-botao-secundario: #c6ddec;
+  --cor-borda-campo: #7294ae;
+
+  /* Contadores e lista vazia */
+  --cor-texto-contador: #456a85;
+  --cor-titulo-lista-vazia: #284f6d;
+  --cor-icone-lista-vazia: #3f7194;
+  --cor-fundo-icone-lista-vazia: #e1f0fb;
+
+  /* Status */
+  --cor-texto-status-ativo: var(--cor-texto-sobre-destaque);
+  --cor-fundo-status-ativo: var(--cor-primaria);
+  --cor-texto-status-inativo: #586b7a;
+  --cor-fundo-status-inativo: #eef3f7;
+
+  /* Sombras e sobreposição atrás da popup (valores com transparência) */
+  --cor-sombra-painel: #243e5208;
+  --cor-sombra-modal: #15344d33;
+  --cor-fundo-sobreposicao: #15344d99;
+}
+
+:root[data-tema='verde'] {
+  /* Marca e ações */
+  --cor-primaria: #245c48;
+  --cor-primaria-hover: #194533;
+  --cor-texto-sobre-destaque: #fff;
+  --cor-link: var(--cor-primaria);
+  --cor-destaque: #4a7563;
+  --cor-foco: #639c88;
+
+  /* Fundos, textos e bordas */
+  --cor-fundo: #f5f6f3;
+  --cor-superficie-hover: #edf2eb;
+  --cor-texto: #23332d;
+  --cor-texto-secundario: #66746d;
+  --cor-texto-auxiliar: #748077;
+  --cor-texto-descricao: #6a776f;
+  --cor-texto-placeholder: #7a867d;
+  --cor-texto-botao-secundario: #3a4b41;
+  --cor-borda: #e1e6e1;
+  --cor-divisor: #edf0ec;
+  --cor-borda-botao-secundario: #dce3dd;
+  --cor-borda-campo: #d5ded5;
+
+  /* Contadores e lista vazia */
+  --cor-texto-contador: #5a6d60;
+  --cor-titulo-lista-vazia: #334d3e;
+  --cor-icone-lista-vazia: #47745b;
+  --cor-fundo-icone-lista-vazia: #eff4ed;
+
+  /* Status */
+  --cor-texto-status-ativo: #2b6744;
+  --cor-fundo-status-ativo: #ecf5ee;
+  --cor-texto-status-inativo: #666b63;
+  --cor-fundo-status-inativo: #f0f0ee;
+
+  /* Sombras e sobreposição atrás da popup (valores com transparência) */
+  --cor-sombra-painel: #23332d03;
+  --cor-sombra-modal: #10291e33;
+  --cor-fundo-sobreposicao: #10291e99;
+}

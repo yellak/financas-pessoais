@@ -78,7 +78,41 @@ npm run dev
 
 Abra o endereço exibido pelo Vite, normalmente `http://localhost:5173`. A página inicial abre `/categorias`. O proxy de desenvolvimento encaminha `/api` para `http://localhost:8080`.
 
-A interface permite listar, cadastrar, editar, ativar/desativar e excluir categorias com confirmação. Há estados de lista vazia, carregamento, sucesso, erros de validação e falhas de conexão.
+A interface lista as categorias e abre janelas modais para cadastrar, editar ou visualizar os detalhes. Os formulários permitem ativar/desativar categorias e exibem os erros dentro da janela; ao salvar com sucesso, a janela fecha e a lista é atualizada. As janelas podem ser fechadas pelo botão de fechar, por Cancelar ou pela tecla Esc, e ficam bloqueadas durante o salvamento. A exclusão continua exigindo confirmação na lista. Há estados de lista vazia, carregamento, sucesso, erros de validação e falhas de conexão.
+
+### Alterar as cores
+
+As cores da interface, incluindo as popups e os indicadores de status, ficam nas variáveis CSS de [`frontend/src/assets/theme.css`](frontend/src/assets/theme.css), importadas pelo CSS global. Há duas paletas: `azul-bebe` (padrão) e `verde` (paleta original). Cada uma tem seu bloco `:root[data-tema='...']`; o primeiro bloco `:root` reúne as cores compartilhadas. O azul bebê também serve de fallback quando o atributo está ausente. Algumas variáveis usadas pelo tema azul bebê:
+
+```css
+:root {
+  --cor-superficie: #fff; /* Cabeçalho, painéis, campos e popups */
+}
+
+:root[data-tema='azul-bebe'] {
+  --cor-primaria: #b3d9f2; /* Botões principais e checkbox */
+  --cor-primaria-hover: #9ccbed; /* Botão principal ao passar o mouse */
+  --cor-texto-sobre-destaque: #1e405b; /* Texto dos botões principais */
+  --cor-link: #2b638b; /* Navegação e ações em texto */
+  --cor-fundo: #f0f7fd; /* Fundo da aplicação */
+  --cor-texto: #243e52; /* Texto principal */
+}
+```
+
+As cores de sucesso, erro e status têm variáveis próprias. Ao mudar o tema, ajuste também as cores de hover e foco e mantenha contraste suficiente entre textos e fundos. Com `npm run dev`, basta salvar o arquivo para ver as alterações no navegador, sem reiniciar os serviços. Em produção, gere e publique um novo build do frontend.
+
+### Preparação para trocar o tema pela interface
+
+[`frontend/src/theme.ts`](frontend/src/theme.ts) exporta a lista `temasDisponiveis`, o tipo `Tema`, o `temaPadrao` e a função `aplicarTema`. O frontend aplica `temaPadrao` antes de montar a aplicação. A futura tela de preferências pode usar a lista para preencher um seletor e chamar:
+
+```ts
+import { aplicarTema } from '@/theme'
+
+aplicarTema('verde')
+aplicarTema('azul-bebe')
+```
+
+A função altera `data-tema` no elemento `html` e o CSS atualiza a página e as popups imediatamente, preservando os dados dos formulários. Para experimentar agora pelo console do navegador, use `document.documentElement.dataset.tema = 'verde'` ou `'azul-bebe'`. O tema inicial continua definido em `temaPadrao`; a preferência ainda não é salva entre acessos.
 
 ## API de categorias
 

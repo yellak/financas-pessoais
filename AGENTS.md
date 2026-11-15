@@ -7,6 +7,7 @@
 - Evolua o banco apenas com novas migrations em `backend/src/main/resources/db/migration`. Não edite migrations já aplicadas; mantenha `ddl-auto=validate`.
 - Garanta unicidade de nomes de categoria sem distinguir maiúsculas de minúsculas, também no banco. Use 201 com Location na criação, 204 na exclusão e erros 400/404/409 em português.
 - Frontend: Composition API com `<script setup lang="ts">`; chamadas HTTP em `src/services/`; telas responsivas, acessíveis e em português. Use `/api` com o proxy Vite.
+- Centralize as cores em `frontend/src/assets/theme.css`; use as variáveis CSS nos estilos globais e nos componentes. Os temas `azul-bebe` e `verde` são aplicados por `data-tema` no elemento `html`; use `aplicarTema` de `frontend/src/theme.ts` para alterná-los.
 - Nunca versione `.env`, senhas, dependências ou arquivos gerados. Documente variáveis sem segredos em `.env.example`; preserve os lockfiles e o Maven Wrapper.
 - Verifique alterações com `cd backend && ./mvnw verify` e, no frontend, `npm run test:unit -- --run`, `npm run build` e `npm run lint`. Testes de integração exigem Docker e usam banco descartável via Testcontainers; informe testes pulados e limitações.
 - Atualize o README quando mudar comandos ou configuração. Não publique no GitHub sem autorização explícita.
