@@ -1,10 +1,12 @@
 # Finanças pessoais
 
-CRUD de categorias de gastos em um monorepositório:
+CRUD de categorias em um monorepositório:
 
 - `backend/`: Java 21, Spring Boot 4.1, Maven, Spring Data JPA e Flyway.
 - `frontend/`: Vue 3, TypeScript, Vite e Vitest.
 - `compose.yaml`: PostgreSQL 18 com volume persistente e healthcheck.
+
+As categorias são genéricas: um único cadastro, como “Investimento” ou “Outros”, pode ser utilizado tanto para receitas quanto para despesas, sem campo de tipo na categoria.
 
 ## Pré-requisitos
 

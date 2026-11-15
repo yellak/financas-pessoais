@@ -1,7 +1,7 @@
 # Orientações do projeto
 
 - Monorepositório: `backend/` com Java 21, Spring Boot 4.x e Maven Wrapper; `frontend/` com Vue 3, TypeScript e Vite; PostgreSQL 18 em `compose.yaml`.
-- Mantenha o escopo em categorias de gastos. Não adicione autenticação, outras entidades ou microsserviços sem solicitação.
+- Mantenha o escopo em categorias genéricas, compartilhadas entre receitas e despesas, sem campo de tipo. Não adicione autenticação, outras entidades ou microsserviços sem solicitação.
 - Backend: organize por funcionalidade em `br.com.financas.backend`; use controller REST, DTOs com Bean Validation, service transacional e Spring Data JPA. Não exponha entidades diretamente.
 - Execute Maven dentro de `backend/`; `.mvn/maven.config` seleciona `.mvn/settings.xml` para usar Maven Central sem alterar as configurações corporativas globais do usuário.
 - Evolua o banco apenas com novas migrations em `backend/src/main/resources/db/migration`. Não edite migrations já aplicadas; mantenha `ddl-auto=validate`.

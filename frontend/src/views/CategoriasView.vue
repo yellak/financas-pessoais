@@ -127,8 +127,8 @@ onMounted(carregar)
     <div class="page-heading">
       <div>
         <p class="eyebrow">SEU DINHEIRO, MAIS ORGANIZADO</p>
-        <h1>Categorias de gastos</h1>
-        <p class="subtitle">Defina as categorias que fazem sentido para o seu dia a dia.</p>
+        <h1>Categorias</h1>
+        <p class="subtitle">Use as mesmas categorias para organizar suas receitas e despesas.</p>
       </div>
       <button class="button primary" type="button" :disabled="ocupado" @click="novoCadastro">
         <span aria-hidden="true">＋</span> Nova categoria
@@ -160,7 +160,7 @@ onMounted(carregar)
         <div v-else-if="categorias.length === 0" class="empty-state">
           <span class="empty-icon" aria-hidden="true">＋</span>
           <h3>Seu primeiro passo para se organizar</h3>
-          <p>Nenhuma categoria cadastrada. Comece por alimentação, transporte ou lazer.</p>
+          <p>Nenhuma categoria cadastrada. Comece por investimento, salário ou alimentação.</p>
         </div>
         <ul v-else class="category-list">
           <li v-for="categoria in ordenadas" :key="categoria.id" class="category-item">

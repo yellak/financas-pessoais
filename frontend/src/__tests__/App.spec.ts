@@ -21,7 +21,7 @@ describe('App', () => {
     const wrapper = mount(App, { global: { plugins: [router] } })
     await flushPromises()
 
-    expect(wrapper.get('h1').text()).toBe('Categorias de gastos')
+    expect(wrapper.get('h1').text()).toBe('Categorias')
     expect(wrapper.get('nav a').attributes('href')).toBe('/categorias')
     wrapper.unmount()
   })

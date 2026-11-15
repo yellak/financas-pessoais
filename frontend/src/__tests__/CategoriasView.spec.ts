@@ -28,7 +28,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('Categorias de gastos', () => {
+describe('Categorias', () => {
   it('mostra carregamento enquanto espera a API', () => {
     buscar.mockReturnValueOnce(new Promise(() => {}))
     wrapper = mount(CategoriasView)
