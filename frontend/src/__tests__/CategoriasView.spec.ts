@@ -2,6 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import type { Categoria } from '../services/categorias'
 import CategoriasView from '../views/CategoriasView.vue'
+import { i18n } from '@/i18n'
 
 const mercado = { id: 1, nome: 'Mercado', descricao: 'Compras do mês', ativa: true }
 const buscar = vi.fn<typeof fetch>()
@@ -13,7 +14,7 @@ function responder(dados: unknown, status = 200) {
 
 async function montar(categorias: Categoria[] = [mercado]) {
   buscar.mockResolvedValueOnce(responder(categorias))
-  wrapper = mount(CategoriasView, { attachTo: document.body })
+  wrapper = mount(CategoriasView, { attachTo: document.body, global: { plugins: [i18n] } })
   await flushPromises()
   return wrapper
 }
@@ -51,7 +52,7 @@ afterEach(() => {
 describe('Categorias', () => {
   it('mostra carregamento enquanto espera a API', () => {
     buscar.mockReturnValueOnce(new Promise(() => {}))
-    wrapper = mount(CategoriasView)
+    wrapper = mount(CategoriasView, { global: { plugins: [i18n] } })
 
     expect(wrapper.get('[role="status"]').text()).toBe('Carregando categorias…')
     expect(wrapper.get('.page-heading button').attributes('disabled')).toBeDefined()
@@ -78,7 +79,7 @@ describe('Categorias', () => {
 
   it('permite tentar novamente quando a conexão falha', async () => {
     buscar.mockRejectedValueOnce(new TypeError('Failed to fetch'))
-    wrapper = mount(CategoriasView)
+    wrapper = mount(CategoriasView, { global: { plugins: [i18n] } })
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('Não foi possível conectar ao servidor')
 
@@ -253,6 +254,12 @@ describe('Categorias', () => {
     const pagina = await montar()
     await pagina.get('[aria-label="Excluir Mercado"]').trigger('click')
     expect(pagina.get('.delete-confirmation').text()).toContain('Esta ação é definitiva')
+    expect(pagina.get('.delete-confirmation p').text()).toBe(
+      'Excluir “Mercado”? Esta ação é definitiva.',
+    )
+    expect(pagina.get('.delete-confirmation').attributes('aria-label')).toBe(
+      'Confirmar exclusão de Mercado',
+    )
     await pagina.get('.delete-confirmation .secondary').trigger('click')
 
     expect(pagina.find('.delete-confirmation').exists()).toBe(false)

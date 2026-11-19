@@ -3,6 +3,7 @@ package br.com.financas.backend.categoria;
 import java.util.List;
 
 import br.com.financas.backend.common.ApiExceptionHandler;
+import br.com.financas.backend.common.IdiomaConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -30,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CategoriaController.class)
-@Import(ApiExceptionHandler.class)
+@Import({ApiExceptionHandler.class, IdiomaConfiguration.class})
 class CategoriaControllerTest {
 
     @Autowired
@@ -70,7 +71,11 @@ class CategoriaControllerTest {
     @ValueSource(strings = {"{}", "{\"nome\":null}", "{\"nome\":\"   \"}"})
     void rejeitaNomeAusenteOuEmBranco(String json) throws Exception {
         mvc.perform(post("/api/categorias").accept(MediaType.APPLICATION_JSON).contentType(MediaType.APPLICATION_JSON).content(json))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.erros.nome").exists());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Dados inválidos"))
+                .andExpect(jsonPath("$.detail").value("Revise os campos informados."))
+                .andExpect(jsonPath("$.codigo").value("DADOS_INVALIDOS"))
+                .andExpect(jsonPath("$.erros.nome").value("O nome é obrigatório."));
         verifyNoInteractions(service);
     }
 
@@ -79,15 +84,18 @@ class CategoriaControllerTest {
         String json = "{\"nome\":\"" + "a".repeat(101) + "\",\"descricao\":\"" + "b".repeat(501) + "\"}";
         mvc.perform(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.erros.nome").exists())
-                .andExpect(jsonPath("$.erros.descricao").exists());
+                .andExpect(jsonPath("$.erros.nome").value("O nome deve ter no máximo 100 caracteres."))
+                .andExpect(jsonPath("$.erros.descricao").value("A descrição deve ter no máximo 500 caracteres."));
         verifyNoInteractions(service);
     }
 
     @Test
     void rejeitaJsonMalformado() throws Exception {
         mvc.perform(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content("{"))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.detail").exists());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Requisição inválida"))
+                .andExpect(jsonPath("$.detail").value("Verifique o JSON e os tipos dos valores informados."))
+                .andExpect(jsonPath("$.codigo").value("REQUISICAO_INVALIDA"));
     }
 
     @Test
@@ -99,14 +107,30 @@ class CategoriaControllerTest {
     void categoriaAusenteRetorna404() throws Exception {
         when(service.buscar(99L)).thenThrow(new CategoriaNaoEncontradaException(99L));
         mvc.perform(get("/api/categorias/99"))
-                .andExpect(status().isNotFound()).andExpect(jsonPath("$.detail").value("Categoria de ID 99 não encontrada."));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Categoria não encontrada"))
+                .andExpect(jsonPath("$.detail").value("Categoria de ID 99 não encontrada."))
+                .andExpect(jsonPath("$.codigo").value("CATEGORIA_NAO_ENCONTRADA"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"pt-BR", "en-US", "fr-FR,pt;q=0.8"})
+    void mantemPortuguesParaIdiomasAindaNaoSuportados(String idioma) throws Exception {
+        when(service.buscar(1234L)).thenThrow(new CategoriaNaoEncontradaException(1234L));
+        mvc.perform(get("/api/categorias/1234").header("Accept-Language", idioma))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Categoria de ID 1234 não encontrada."))
+                .andExpect(jsonPath("$.codigo").value("CATEGORIA_NAO_ENCONTRADA"));
     }
 
     @Test
     void nomeDuplicadoRetorna409() throws Exception {
         when(service.criar(any())).thenThrow(new NomeCategoriaDuplicadoException());
         mvc.perform(post("/api/categorias").accept(MediaType.APPLICATION_JSON).contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Mercado\"}"))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value("Já existe uma categoria com esse nome."));
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Nome já utilizado"))
+                .andExpect(jsonPath("$.detail").value("Já existe uma categoria com esse nome."))
+                .andExpect(jsonPath("$.codigo").value("CATEGORIA_NOME_DUPLICADO"));
     }
 
     @Test
@@ -114,6 +138,8 @@ class CategoriaControllerTest {
         when(service.criar(any())).thenThrow(new DataIntegrityViolationException("SQL privado"));
         mvc.perform(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Mercado\"}"))
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Conflito de dados"))
+                .andExpect(jsonPath("$.codigo").value("CONFLITO_DADOS"))
                 .andExpect(jsonPath("$.detail").value("Não foi possível concluir a operação. Verifique se o nome já está em uso."));
     }
 

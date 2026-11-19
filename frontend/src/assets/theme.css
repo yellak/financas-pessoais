@@ -7,9 +7,6 @@
   --cor-texto-erro: #902f2d;
   --cor-fundo-erro: #fdf2f0;
   --cor-borda-erro: #f0cec9;
-  --cor-texto-sucesso: #245c48;
-  --cor-fundo-sucesso: #edf7ee;
-  --cor-borda-sucesso: #cce3d0;
   --cor-fundo-confirmacao-exclusao: #fcf3f1;
   --cor-borda-confirmacao-exclusao: #f0d7d0;
 }
@@ -45,11 +42,14 @@
   --cor-icone-lista-vazia: #3f7194;
   --cor-fundo-icone-lista-vazia: #e1f0fb;
 
-  /* Status */
+  /* Status e mensagens de sucesso */
   --cor-texto-status-ativo: var(--cor-texto-sobre-destaque);
   --cor-fundo-status-ativo: var(--cor-primaria);
   --cor-texto-status-inativo: #586b7a;
   --cor-fundo-status-inativo: #eef3f7;
+  --cor-texto-sucesso: var(--cor-link);
+  --cor-fundo-sucesso: var(--cor-superficie-hover);
+  --cor-borda-sucesso: var(--cor-borda-botao-secundario);
 
   /* Sombras e sobreposição atrás da popup (valores com transparência) */
   --cor-sombra-painel: #243e5208;
@@ -86,11 +86,14 @@
   --cor-icone-lista-vazia: #47745b;
   --cor-fundo-icone-lista-vazia: #eff4ed;
 
-  /* Status */
+  /* Status e mensagens de sucesso */
   --cor-texto-status-ativo: #2b6744;
   --cor-fundo-status-ativo: #ecf5ee;
   --cor-texto-status-inativo: #666b63;
   --cor-fundo-status-inativo: #f0f0ee;
+  --cor-texto-sucesso: #245c48;
+  --cor-fundo-sucesso: #edf7ee;
+  --cor-borda-sucesso: #cce3d0;
 
   /* Sombras e sobreposição atrás da popup (valores com transparência) */
   --cor-sombra-painel: #23332d03;

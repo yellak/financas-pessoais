@@ -2,7 +2,9 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { aplicarTema, temaAtual, temasDisponiveis } from '../theme'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const rota = useRoute()
 const aberto = ref(false)
 const temasAbertos = ref(false)
@@ -67,7 +69,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', fecharAoClicar
       ref="botao"
       type="button"
       class="app-menu-toggle"
-      aria-label="Menu principal"
+      :aria-label="t('menu.principal')"
       :aria-expanded="aberto"
       :aria-controls="menuId"
       @click="alternar"
@@ -83,12 +85,12 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', fecharAoClicar
       :id="menuId"
       ref="menu"
       class="app-menu-options"
-      aria-label="Navegação principal"
+      :aria-label="t('menu.navegacao')"
     >
       <ul>
         <li>
           <RouterLink to="/categorias" class="app-menu-link" @click="fechar(true)">
-            Categorias
+            {{ t('categorias.titulo') }}
           </RouterLink>
         </li>
         <li class="app-menu-theme">
@@ -99,7 +101,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', fecharAoClicar
             :aria-controls="temasId"
             @click="alternarTemas"
           >
-            <span>Tema</span>
+            <span>{{ t('menu.tema') }}</span>
             <svg
               width="16"
               height="16"
@@ -118,7 +120,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', fecharAoClicar
             :id="temasId"
             ref="opcoesTema"
             class="app-menu-themes"
-            aria-label="Tema da aplicação"
+            :aria-label="t('menu.temaAplicacao')"
           >
             <label
               v-for="tema in temasDisponiveis"
@@ -133,7 +135,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', fecharAoClicar
                 :checked="temaAtual === tema.valor"
                 @change="aplicarTema(tema.valor)"
               />
-              <span>{{ tema.nome }}</span>
+              <span>{{ t(tema.chaveNome) }}</span>
             </label>
           </fieldset>
         </li>

@@ -2,9 +2,11 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import AppModal from '../components/AppModal.vue'
 import { categoriasApi, type Categoria, type CategoriaInput } from '../services/categorias'
+import { useI18n } from 'vue-i18n'
 
 type ModoModal = 'criar' | 'editar' | 'visualizar'
 
+const { t, locale } = useI18n()
 const categorias = ref<Categoria[]>([])
 const carregando = ref(true)
 const salvando = ref(false)
@@ -20,15 +22,15 @@ const nomeInput = ref<HTMLInputElement | null>(null)
 const formulario = reactive<CategoriaInput>({ nome: '', descricao: '', ativa: true })
 const ocupado = computed(() => carregando.value || salvando.value || excluindoId.value !== null)
 const ordenadas = computed(() =>
-  [...categorias.value].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+  [...categorias.value].sort((a, b) => a.nome.localeCompare(b.nome, locale.value)),
 )
 const tituloModal = computed(() => {
-  if (modoModal.value === 'visualizar') return 'Detalhes da categoria'
-  return modoModal.value === 'editar' ? 'Editar categoria' : 'Nova categoria'
+  if (modoModal.value === 'visualizar') return t('categorias.detalhes')
+  return modoModal.value === 'editar' ? t('categorias.editar') : t('categorias.nova')
 })
 
 function mensagemErro(falha: unknown) {
-  return falha instanceof Error ? falha.message : 'Ocorreu um erro. Tente novamente.'
+  return falha instanceof Error ? falha.message : t('erros.inesperado')
 }
 
 async function carregar() {
@@ -82,7 +84,7 @@ async function salvar() {
   erroModal.value = ''
   sucesso.value = ''
   if (!formulario.nome.trim()) {
-    erroModal.value = 'O nome é obrigatório.'
+    erroModal.value = t('categorias.formulario.nomeObrigatorio')
     nomeInput.value?.focus()
     return
   }
@@ -98,7 +100,7 @@ async function salvar() {
       id === null ? await categoriasApi.criar(dados) : await categoriasApi.atualizar(id, dados)
     categorias.value = [...categorias.value.filter((categoria) => categoria.id !== salva.id), salva]
     sucesso.value =
-      id === null ? 'Categoria cadastrada com sucesso.' : 'Categoria atualizada com sucesso.'
+      id === null ? t('categorias.sucesso.criada') : t('categorias.sucesso.atualizada')
     salvando.value = false
     fecharModal()
     confirmarExclusaoId.value = null
@@ -124,7 +126,7 @@ async function excluir(categoria: Categoria) {
     await categoriasApi.excluir(categoria.id)
     categorias.value = categorias.value.filter((item) => item.id !== categoria.id)
     confirmarExclusaoId.value = null
-    sucesso.value = 'Categoria excluída com sucesso.'
+    sucesso.value = t('categorias.sucesso.excluida')
   } catch (falha) {
     erro.value = mensagemErro(falha)
   } finally {
@@ -139,12 +141,12 @@ onMounted(carregar)
   <main class="page">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">SEU DINHEIRO, MAIS ORGANIZADO</p>
-        <h1>Categorias</h1>
-        <p class="subtitle">Use as mesmas categorias para organizar suas receitas e despesas.</p>
+        <p class="eyebrow">{{ t('categorias.chamada') }}</p>
+        <h1>{{ t('categorias.titulo') }}</h1>
+        <p class="subtitle">{{ t('categorias.subtitulo') }}</p>
       </div>
       <button class="button primary" type="button" :disabled="ocupado" @click="abrirModal('criar')">
-        <span aria-hidden="true">＋</span> Nova categoria
+        <span aria-hidden="true">＋</span> {{ t('categorias.nova') }}
       </button>
     </div>
 
@@ -154,73 +156,75 @@ onMounted(carregar)
     <section class="panel list-panel" aria-labelledby="lista-titulo" :aria-busy="carregando">
       <div class="panel-heading">
         <div class="section-title">
-          <h2 id="lista-titulo">Suas categorias</h2>
+          <h2 id="lista-titulo">{{ t('categorias.lista') }}</h2>
           <span v-if="!carregando && !falhaCarregamento" class="count">{{
             categorias.length
           }}</span>
         </div>
         <button type="button" class="text-button" :disabled="ocupado" @click="carregar">
-          Atualizar lista
+          {{ t('categorias.atualizarLista') }}
         </button>
       </div>
 
-      <div v-if="carregando" class="empty-state" role="status">Carregando categorias…</div>
+      <div v-if="carregando" class="empty-state" role="status">
+        {{ t('categorias.carregando') }}
+      </div>
       <div v-else-if="falhaCarregamento" class="empty-state">
-        <h3>Não foi possível carregar as categorias</h3>
-        <p>Verifique a conexão e tente atualizar a lista.</p>
+        <h3>{{ t('categorias.falhaCarregamento') }}</h3>
+        <p>{{ t('categorias.tentarNovamente') }}</p>
       </div>
       <div v-else-if="categorias.length === 0" class="empty-state">
         <span class="empty-icon" aria-hidden="true">＋</span>
-        <h3>Seu primeiro passo para se organizar</h3>
-        <p>Nenhuma categoria cadastrada. Comece por investimento, salário ou alimentação.</p>
+        <h3>{{ t('categorias.listaVazia.titulo') }}</h3>
+        <p>{{ t('categorias.listaVazia.descricao') }}</p>
       </div>
       <ul v-else class="category-list">
         <li v-for="categoria in ordenadas" :key="categoria.id" class="category-item">
           <div class="category-row">
             <div class="category-content">
               <h3>{{ categoria.nome }}</h3>
-              <p>{{ categoria.descricao || 'Sem descrição' }}</p>
+              <p>{{ categoria.descricao || t('categorias.semDescricao') }}</p>
             </div>
             <span class="badge" :class="{ inactive: !categoria.ativa }">{{
-              categoria.ativa ? 'Ativa' : 'Inativa'
+              categoria.ativa ? t('categorias.ativa') : t('categorias.inativa')
             }}</span>
             <div class="row-actions">
               <button
                 type="button"
                 class="text-button"
-                :aria-label="`Visualizar ${categoria.nome}`"
+                :aria-label="t('categorias.visualizarNome', { nome: categoria.nome })"
                 :disabled="ocupado"
                 @click="abrirModal('visualizar', categoria)"
               >
-                Visualizar
+                {{ t('comum.visualizar') }}
               </button>
               <button
                 type="button"
                 class="text-button"
-                :aria-label="`Editar ${categoria.nome}`"
+                :aria-label="t('categorias.editarNome', { nome: categoria.nome })"
                 :disabled="ocupado"
                 @click="abrirModal('editar', categoria)"
               >
-                Editar
+                {{ t('comum.editar') }}
               </button>
               <button
                 type="button"
                 class="text-button danger-text"
-                :aria-label="`Excluir ${categoria.nome}`"
+                :aria-label="t('categorias.excluirNome', { nome: categoria.nome })"
                 :disabled="ocupado"
                 @click="solicitarExclusao(categoria.id)"
               >
-                Excluir
+                {{ t('comum.excluir') }}
               </button>
             </div>
           </div>
           <div
             v-if="confirmarExclusaoId === categoria.id"
             class="delete-confirmation"
-            :aria-label="`Confirmar exclusão de ${categoria.nome}`"
+            :aria-label="t('categorias.confirmarExclusaoNome', { nome: categoria.nome })"
             role="group"
           >
-            <p>Excluir “{{ categoria.nome }}”? Esta ação é definitiva.</p>
+            <p>{{ t('categorias.avisoExclusao', { nome: categoria.nome }) }}</p>
             <div class="form-actions">
               <button
                 type="button"
@@ -228,7 +232,11 @@ onMounted(carregar)
                 :disabled="ocupado"
                 @click="excluir(categoria)"
               >
-                {{ excluindoId === categoria.id ? 'Excluindo…' : 'Confirmar exclusão' }}
+                {{
+                  excluindoId === categoria.id
+                    ? t('categorias.excluindo')
+                    : t('categorias.confirmarExclusao')
+                }}
               </button>
               <button
                 type="button"
@@ -236,7 +244,7 @@ onMounted(carregar)
                 :disabled="ocupado"
                 @click="confirmarExclusaoId = null"
               >
-                Cancelar exclusão
+                {{ t('categorias.cancelarExclusao') }}
               </button>
             </div>
           </div>
@@ -253,52 +261,60 @@ onMounted(carregar)
       <div v-if="modoModal === 'visualizar' && categoriaSelecionada" class="category-details">
         <dl>
           <div>
-            <dt>Nome</dt>
+            <dt>{{ t('categorias.nome') }}</dt>
             <dd>{{ categoriaSelecionada.nome }}</dd>
           </div>
           <div>
-            <dt>Descrição</dt>
+            <dt>{{ t('categorias.descricao') }}</dt>
             <dd class="category-description">
-              {{ categoriaSelecionada.descricao || 'Sem descrição' }}
+              {{ categoriaSelecionada.descricao || t('categorias.semDescricao') }}
             </dd>
           </div>
           <div>
-            <dt>Status</dt>
+            <dt>{{ t('categorias.status') }}</dt>
             <dd>
               <span class="badge" :class="{ inactive: !categoriaSelecionada.ativa }">
-                {{ categoriaSelecionada.ativa ? 'Ativa' : 'Inativa' }}
+                {{ categoriaSelecionada.ativa ? t('categorias.ativa') : t('categorias.inativa') }}
               </span>
             </dd>
           </div>
         </dl>
         <div class="form-actions">
-          <button type="button" class="button primary" @click="fecharModal">Fechar</button>
+          <button type="button" class="button primary" @click="fecharModal">
+            {{ t('comum.fechar') }}
+          </button>
         </div>
       </div>
       <form v-else class="category-form" :aria-busy="salvando" @submit.prevent="salvar">
         <div v-if="erroModal" class="notice error" role="alert">{{ erroModal }}</div>
-        <p class="form-hint">Dê um nome e, se quiser, adicione uma descrição.</p>
+        <p class="form-hint">{{ t('categorias.formulario.orientacao') }}</p>
         <div class="field">
-          <label for="nome">Nome <span class="required-note">(obrigatório)</span></label>
+          <label for="nome"
+            >{{ t('categorias.nome') }}
+            <span class="required-note">{{ t('comum.obrigatorio') }}</span></label
+          >
           <input
             id="nome"
             ref="nomeInput"
             v-model="formulario.nome"
             name="nome"
             type="text"
-            placeholder="Ex.: Alimentação"
+            :placeholder="t('categorias.formulario.nomeExemplo')"
             maxlength="100"
             required
             :disabled="ocupado"
           />
         </div>
         <div class="field">
-          <label for="descricao">Descrição <span class="required-note">(opcional)</span></label>
+          <label for="descricao"
+            >{{ t('categorias.descricao') }}
+            <span class="required-note">{{ t('comum.opcional') }}</span></label
+          >
           <textarea
             id="descricao"
             v-model="formulario.descricao"
             name="descricao"
-            placeholder="O que você vai incluir nesta categoria?"
+            :placeholder="t('categorias.formulario.descricaoExemplo')"
             maxlength="500"
             rows="4"
             :disabled="ocupado"
@@ -312,20 +328,23 @@ onMounted(carregar)
             type="checkbox"
             :disabled="ocupado"
           />
-          <span>Categoria ativa<small>Desmarque para manter a categoria inativa.</small></span>
+          <span
+            >{{ t('categorias.formulario.ativa')
+            }}<small>{{ t('categorias.formulario.orientacaoAtiva') }}</small></span
+          >
         </label>
         <div class="form-actions">
           <button type="submit" class="button primary" :disabled="ocupado">
             {{
               salvando
-                ? 'Salvando…'
+                ? t('comum.salvando')
                 : modoModal === 'criar'
-                  ? 'Cadastrar categoria'
-                  : 'Salvar alterações'
+                  ? t('categorias.formulario.cadastrar')
+                  : t('comum.salvarAlteracoes')
             }}
           </button>
           <button type="button" class="button secondary" :disabled="ocupado" @click="fecharModal">
-            Cancelar
+            {{ t('comum.cancelar') }}
           </button>
         </div>
       </form>

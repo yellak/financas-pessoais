@@ -1,0 +1,79 @@
+{
+  "app": {
+    "nome": "Finanças pessoais",
+    "titulo": "Categorias · Finanças pessoais",
+    "descricao": "Organize suas categorias de receitas e despesas nas Finanças pessoais."
+  },
+  "comum": {
+    "visualizar": "Visualizar",
+    "editar": "Editar",
+    "excluir": "Excluir",
+    "fechar": "Fechar",
+    "fecharJanela": "Fechar janela",
+    "cancelar": "Cancelar",
+    "obrigatorio": "(obrigatório)",
+    "opcional": "(opcional)",
+    "salvando": "Salvando…",
+    "salvarAlteracoes": "Salvar alterações"
+  },
+  "menu": {
+    "principal": "Menu principal",
+    "navegacao": "Navegação principal",
+    "tema": "Tema",
+    "temaAplicacao": "Tema da aplicação",
+    "temas": {
+      "azulBebe": "Azul bebê",
+      "verde": "Verde"
+    }
+  },
+  "erros": {
+    "inesperado": "Ocorreu um erro. Tente novamente.",
+    "conexao": "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
+    "operacao": "Não foi possível concluir a operação. Tente novamente."
+  },
+  "categorias": {
+    "chamada": "SEU DINHEIRO, MAIS ORGANIZADO",
+    "titulo": "Categorias",
+    "subtitulo": "Use as mesmas categorias para organizar suas receitas e despesas.",
+    "nova": "Nova categoria",
+    "editar": "Editar categoria",
+    "detalhes": "Detalhes da categoria",
+    "lista": "Suas categorias",
+    "atualizarLista": "Atualizar lista",
+    "carregando": "Carregando categorias…",
+    "falhaCarregamento": "Não foi possível carregar as categorias",
+    "tentarNovamente": "Verifique a conexão e tente atualizar a lista.",
+    "listaVazia": {
+      "titulo": "Seu primeiro passo para se organizar",
+      "descricao": "Nenhuma categoria cadastrada. Comece por investimento, salário ou alimentação."
+    },
+    "semDescricao": "Sem descrição",
+    "ativa": "Ativa",
+    "inativa": "Inativa",
+    "visualizarNome": "Visualizar {nome}",
+    "editarNome": "Editar {nome}",
+    "excluirNome": "Excluir {nome}",
+    "confirmarExclusaoNome": "Confirmar exclusão de {nome}",
+    "avisoExclusao": "Excluir “{nome}”? Esta ação é definitiva.",
+    "excluindo": "Excluindo…",
+    "confirmarExclusao": "Confirmar exclusão",
+    "cancelarExclusao": "Cancelar exclusão",
+    "nome": "Nome",
+    "descricao": "Descrição",
+    "status": "Status",
+    "formulario": {
+      "orientacao": "Dê um nome e, se quiser, adicione uma descrição.",
+      "nomeExemplo": "Ex.: Alimentação",
+      "descricaoExemplo": "O que você vai incluir nesta categoria?",
+      "ativa": "Categoria ativa",
+      "orientacaoAtiva": "Desmarque para manter a categoria inativa.",
+      "cadastrar": "Cadastrar categoria",
+      "nomeObrigatorio": "O nome é obrigatório."
+    },
+    "sucesso": {
+      "criada": "Categoria cadastrada com sucesso.",
+      "atualizada": "Categoria atualizada com sucesso.",
+      "excluida": "Categoria excluída com sucesso."
+    }
+  }
+}

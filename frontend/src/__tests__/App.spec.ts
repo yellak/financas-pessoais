@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import App from '../App.vue'
 import CategoriasView from '../views/CategoriasView.vue'
 import { inicializarTema } from '../theme'
+import { i18n } from '@/i18n'
 
 let wrapper: VueWrapper | undefined
 
@@ -18,7 +19,7 @@ async function montar() {
   })
   await router.push('/')
   await router.isReady()
-  wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+  wrapper = mount(App, { attachTo: document.body, global: { plugins: [router, i18n] } })
   await flushPromises()
   return wrapper
 }

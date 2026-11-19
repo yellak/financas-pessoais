@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const props = withDefaults(defineProps<{ titulo: string; ocupado?: boolean }>(), {
   ocupado: false,
 })
@@ -44,7 +46,7 @@ onBeforeUnmount(() => {
       <button
         type="button"
         class="modal-close"
-        aria-label="Fechar janela"
+        :aria-label="t('comum.fecharJanela')"
         :disabled="ocupado"
         @click="solicitarFechamento"
       >

@@ -118,6 +118,51 @@ aplicarTema('azul-bebe')
 
 A função altera `data-tema` no elemento `html`, atualiza `temaAtual` e salva a preferência. O CSS atualiza a página e as popups imediatamente, preservando os dados dos formulários. Use `aplicarTema` para manter o tema, o seletor e a preferência sincronizados.
 
+### Textos e tradução
+
+O idioma atual é português do Brasil (`pt-BR`). Os textos ficam em catálogos separados para Vue I18n e Spring MessageSource; não há seletor de idioma nesta versão.
+
+No frontend, edite [`frontend/src/i18n/locales/pt-BR.json`](frontend/src/i18n/locales/pt-BR.json). Organize chaves semânticas por funcionalidade e inclua mensagens, botões, placeholders, nomes de temas e rótulos de acessibilidade. Nos componentes com Composition API:
+
+```ts
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+// No template: {{ t('categorias.titulo') }}
+// Com parâmetros: {{ t('categorias.avisoExclusao', { nome: categoria.nome }) }}
+```
+
+Fora dos componentes, como nos serviços HTTP, importe `i18n` de `@/i18n` e use `i18n.global.t('erros.conexao')`. Evite concatenar fragmentos de frases. Os metadados `app.titulo` e `app.descricao` também vêm do catálogo: o Vite os inclui no HTML inicial e `inicializarIdioma` sincroniza título, descrição e `html.lang` no navegador. Ordenações usam o locale da interface.
+
+No backend, edite [`backend/src/main/resources/messages.properties`](backend/src/main/resources/messages.properties), em UTF-8. O `MessageSource` do Spring resolve títulos e detalhes no `ApiExceptionHandler`, usando o locale da requisição. Exceções de negócio carregam apenas os dados necessários à apresentação. Bean Validation referencia as mesmas mensagens por chave:
+
+```java
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+record CategoriaRequest(
+    @NotBlank(message = "{categoria.nome.obrigatorio}")
+    @Size(max = 100, message = "{categoria.nome.tamanho}")
+    String nome
+) {}
+```
+
+Em mensagens do `MessageSource`, os parâmetros são posicionais (`{0}`, `{1}`); Bean Validation usa parâmetros da restrição, como `{max}`. No Vue I18n, use parâmetros nomeados, como `{nome}`. Nomes e descrições cadastrados pelos usuários são dados e permanecem como foram informados.
+
+As chamadas HTTP enviam `Accept-Language` com o locale atual. [`IdiomaConfiguration`](backend/src/main/java/br/com/financas/backend/common/IdiomaConfiguration.java) define os idiomas aceitos e o padrão `pt-BR`, usado também quando o idioma solicitado ainda não é suportado. O catálogo base em português não depende do locale do sistema operacional. Para adicionar um idioma, crie seu JSON no frontend, registre-o em `src/i18n.ts`, acrescente o bundle correspondente no backend (por exemplo, `messages_en_US.properties`) e registre o locale no resolver. Uma futura seleção de idioma deve atualizar `i18n.global.locale.value`.
+
+Os erros da API incluem um `codigo` estável para tratamento pelo cliente; não compare frases traduzidas. O frontend apresenta `erros` por campo ou `detail` retornados pela API e usa traduções locais para falhas de conexão e respostas sem uma mensagem válida. Exemplo:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Nome já utilizado",
+  "status": 409,
+  "detail": "Já existe uma categoria com esse nome.",
+  "codigo": "CATEGORIA_NOME_DUPLICADO"
+}
+```
+
 ## API de categorias
 
 | Método | Endpoint | Resposta de sucesso |
@@ -143,7 +188,7 @@ Corpo de criação e atualização:
 - `descricao` é opcional, tem no máximo 500 caracteres e fica `null` quando vazia.
 - `ativa` tem padrão `true` quando omitida ou `null`, tanto no POST quanto no PUT. Envie `false` explicitamente para manter uma categoria inativa em uma atualização.
 - PUT substitui os campos da categoria; DELETE faz exclusão definitiva.
-- Entradas inválidas retornam `400`, categorias inexistentes `404` e nomes duplicados `409`. Erros usam Problem Details com `detail` em português e `erros` por campo quando aplicável.
+- Entradas inválidas retornam `400`, categorias inexistentes `404` e nomes duplicados `409`. Erros usam Problem Details com `title` e `detail` traduzidos, `codigo` estável e `erros` por campo quando aplicável. Os códigos atuais são `DADOS_INVALIDOS`, `REQUISICAO_INVALIDA`, `CATEGORIA_NAO_ENCONTRADA`, `CATEGORIA_NOME_DUPLICADO` e `CONFLITO_DADOS`.
 
 Exemplo:
 

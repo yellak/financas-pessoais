@@ -1,8 +1,8 @@
 import { readonly, ref } from 'vue'
 
 export const temasDisponiveis = [
-  { valor: 'azul-bebe', nome: 'Azul bebê' },
-  { valor: 'verde', nome: 'Verde' },
+  { valor: 'azul-bebe', chaveNome: 'menu.temas.azulBebe' },
+  { valor: 'verde', chaveNome: 'menu.temas.verde' },
 ] as const
 
 export type Tema = (typeof temasDisponiveis)[number]['valor']

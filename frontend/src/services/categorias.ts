@@ -1,3 +1,5 @@
+import { i18n } from '@/i18n'
+
 export interface Categoria {
   id: number
   nome: string
@@ -19,21 +21,18 @@ async function requisitar<T>(caminho = '', opcoes: RequestInit = {}): Promise<T>
       ...opcoes,
       headers: {
         Accept: 'application/json',
+        'Accept-Language': i18n.global.locale.value,
         ...(opcoes.body ? { 'Content-Type': 'application/json' } : {}),
       },
     })
   } catch {
-    throw new Error(
-      'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
-    )
+    throw new Error(i18n.global.t('erros.conexao'))
   }
 
   if (!resposta.ok) {
     const problema = (await resposta.json().catch(() => null)) as ProblemaApi | null
     const campos = problema?.erros ? Object.values(problema.erros).join(' ') : ''
-    throw new Error(
-      campos || problema?.detail || 'Não foi possível concluir a operação. Tente novamente.',
-    )
+    throw new Error(campos || problema?.detail || i18n.global.t('erros.operacao'))
   }
 
   if (resposta.status === 204) return undefined as T
