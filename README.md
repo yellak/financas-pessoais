@@ -35,6 +35,8 @@ Edite `.env` e substitua `DB_PASSWORD` por uma senha local. Não sobrescreva um 
 | `DB_NAME` | `financas` | Nome do banco |
 | `DB_USER` | `financas` | Usuário do banco |
 | `DB_PASSWORD` | obrigatório | Senha local, sem valor padrão no backend ou Compose |
+| `LOG_FORMATO_CONSOLE` | texto | Use `logstash` para emitir logs em JSON na saída padrão do backend |
+| `LOG_NIVEL_SQL` | `INFO` | Use `DEBUG` para ver o SQL emitido pelo Hibernate |
 
 O Docker Compose lê o `.env` da raiz. O backend também importa esse arquivo ao ser iniciado a partir da raiz ou de `backend/`; variáveis de ambiente exportadas têm precedência. Use entradas simples `CHAVE=valor`, compatíveis com arquivos de propriedades Java. Não coloque senhas em variáveis `VITE_*`, pois elas são expostas no navegador.
 
@@ -65,6 +67,16 @@ cd backend
 ```
 
 API: `http://localhost:8080/api/categorias`. O Flyway aplica `V1__criar_categorias.sql` na inicialização; o Hibernate apenas valida o schema com `ddl-auto=validate`.
+
+### Logs do backend
+
+O backend gera um `X-Request-ID` para cada chamada à API e devolve o mesmo valor no cabeçalho da resposta. Procure esse ID na saída do backend para localizar o método, o padrão da rota, o status HTTP e a duração em milissegundos da chamada.
+
+O nível é `INFO` para respostas de sucesso e erros esperados como `400`, `404` e `409`. Respostas `5xx` usam `ERROR` e incluem o tipo e a pilha da causa quando há uma exceção. O registro da requisição usa o padrão da rota para omitir parâmetros e exclui corpos e mensagens de exceção.
+
+O formato padrão é texto no terminal. Para emitir JSON, defina `LOG_FORMATO_CONSOLE=logstash` no `.env` ou no ambiente do backend.
+
+Para ver o SQL emitido pelo Hibernate, defina `LOG_NIVEL_SQL=DEBUG` no `.env` e reinicie o backend. Para ativar em uma única execução, use `LOG_NIVEL_SQL=DEBUG ./mvnw spring-boot:run` dentro de `backend/`. O logger nativo `org.hibernate.SQL` mostra os comandos com `?` no lugar dos valores dos parâmetros. O SQL emitido durante uma requisição carrega o mesmo `requestId` do log HTTP.
 
 ## Iniciar o frontend
 
@@ -188,7 +200,7 @@ Corpo de criação e atualização:
 - `descricao` é opcional, tem no máximo 500 caracteres e fica `null` quando vazia.
 - `ativa` tem padrão `true` quando omitida ou `null`, tanto no POST quanto no PUT. Envie `false` explicitamente para manter uma categoria inativa em uma atualização.
 - PUT substitui os campos da categoria; DELETE faz exclusão definitiva.
-- Entradas inválidas retornam `400`, categorias inexistentes `404` e nomes duplicados `409`. Erros usam Problem Details com `title` e `detail` traduzidos, `codigo` estável e `erros` por campo quando aplicável. Os códigos atuais são `DADOS_INVALIDOS`, `REQUISICAO_INVALIDA`, `CATEGORIA_NAO_ENCONTRADA`, `CATEGORIA_NOME_DUPLICADO` e `CONFLITO_DADOS`.
+- Entradas inválidas retornam `400`, categorias inexistentes `404` e nomes duplicados `409`. Erros usam Problem Details com `title` e `detail` traduzidos, `codigo` estável e `erros` por campo quando aplicável. Os códigos atuais são `DADOS_INVALIDOS`, `REQUISICAO_INVALIDA`, `CATEGORIA_NAO_ENCONTRADA`, `CATEGORIA_NOME_DUPLICADO`, `CONFLITO_DADOS` e `ERRO_INTERNO` para falhas inesperadas (`500`).
 
 Exemplo:
 

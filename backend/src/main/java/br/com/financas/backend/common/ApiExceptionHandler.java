@@ -7,12 +7,15 @@ import java.util.Map;
 import br.com.financas.backend.categoria.CategoriaNaoEncontradaException;
 import br.com.financas.backend.categoria.NomeCategoriaDuplicadoException;
 import org.springframework.context.MessageSource;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -54,6 +57,15 @@ public class ApiExceptionHandler {
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
     public ProblemDetail requisicaoInvalida(Locale locale) {
         return problema(HttpStatus.BAD_REQUEST, "REQUISICAO_INVALIDA", "erro.requisicaoInvalida", locale);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail erroInterno(Exception exception, Locale locale) throws Exception {
+        if (exception instanceof ErrorResponse
+                || AnnotatedElementUtils.hasAnnotation(exception.getClass(), ResponseStatus.class)) {
+            throw exception;
+        }
+        return problema(HttpStatus.INTERNAL_SERVER_ERROR, "ERRO_INTERNO", "erro.interno", locale);
     }
 
     private ProblemDetail problema(HttpStatus status, String codigo, String chave, Locale locale, Object... argumentos) {

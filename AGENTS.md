@@ -13,3 +13,11 @@
 - Nunca versione `.env`, senhas, dependências ou arquivos gerados. Documente variáveis sem segredos em `.env.example`; preserve os lockfiles e o Maven Wrapper.
 - Verifique alterações com `cd backend && ./mvnw verify` e, no frontend, `npm run test:unit -- --run`, `npm run build` e `npm run lint`. Testes de integração exigem Docker e usam banco descartável via Testcontainers; informe testes pulados e limitações.
 - Atualize o README quando mudar comandos ou configuração. Não publique no GitHub sem autorização explícita.
+
+## Logs no backend
+
+- Use SLF4J com o logger da classe e campos estruturados via `addKeyValue`. Mantenha a mensagem estável e inclua só os metadados necessários, como `categoriaId`. O `RequisicaoLogFilter` já disponibiliza o `requestId` no MDC durante a chamada HTTP.
+- Registre eventos de negócio quando ajudarem a investigar ou confirmar um resultado relevante, como identificar qual registro foi salvo. Para registrar uma gravação confirmada, emita o evento após o commit da transação.
+- Use `INFO` para resultados relevantes, `WARN` para condições anormais que merecem atenção, `ERROR` para falhas inesperadas e `DEBUG` para diagnóstico detalhado. Aproveite o log HTTP para status esperados e mantenha um único registro por falha.
+- Preserve a privacidade usando identificadores e outros metadados técnicos. Evite incluir dados de formulário, valores de parâmetros SQL, corpos de requisição ou credenciais.
+- Para investigar comandos SQL, use o logger nativo do Hibernate com `LOG_NIVEL_SQL=DEBUG`. O padrão do projeto é `INFO`.

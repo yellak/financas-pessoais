@@ -1,13 +1,17 @@
 package br.com.financas.backend.categoria;
 
 import java.util.List;
+import java.util.UUID;
 
 import br.com.financas.backend.common.ApiExceptionHandler;
 import br.com.financas.backend.common.IdiomaConfiguration;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -15,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -32,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(CategoriaController.class)
 @Import({ApiExceptionHandler.class, IdiomaConfiguration.class})
+@ExtendWith(OutputCaptureExtension.class)
 class CategoriaControllerTest {
 
     @Autowired
@@ -44,7 +50,9 @@ class CategoriaControllerTest {
     void listaCategorias() throws Exception {
         when(service.listar()).thenReturn(List.of(new CategoriaResponse(1L, "Mercado", null, true)));
         mvc.perform(get("/api/categorias"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].nome").value("Mercado"));
+                .andExpect(status().isOk())
+                .andExpect(header().exists("X-Request-ID"))
+                .andExpect(jsonPath("$[0].nome").value("Mercado"));
     }
 
     @Test
@@ -128,9 +136,39 @@ class CategoriaControllerTest {
         when(service.criar(any())).thenThrow(new NomeCategoriaDuplicadoException());
         mvc.perform(post("/api/categorias").accept(MediaType.APPLICATION_JSON).contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Mercado\"}"))
                 .andExpect(status().isConflict())
+                .andExpect(header().exists("X-Request-ID"))
                 .andExpect(jsonPath("$.title").value("Nome já utilizado"))
                 .andExpect(jsonPath("$.detail").value("Já existe uma categoria com esse nome."))
                 .andExpect(jsonPath("$.codigo").value("CATEGORIA_NOME_DUPLICADO"));
+    }
+
+    @Test
+    void correlacionaErroInesperadoAoLogSemExporDados(CapturedOutput saida) throws Exception {
+        when(service.buscar(1L)).thenThrow(new IllegalStateException("mensagem-privada"));
+
+        var resposta = mvc.perform(get("/api/categorias/1")
+                        .queryParam("filtro", "valor-privado")
+                        .header("X-Request-ID", "id-do-cliente"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(header().exists("X-Request-ID"))
+                .andExpect(jsonPath("$.codigo").value("ERRO_INTERNO"))
+                .andExpect(jsonPath("$.detail").value("Não foi possível concluir a operação. Tente novamente."))
+                .andReturn().getResponse();
+
+        String requestId = resposta.getHeader("X-Request-ID");
+        assertThat(requestId).isEqualTo(UUID.fromString(requestId).toString());
+        assertThat(saida.getAll().lines().filter(linha -> linha.contains(requestId)).toList())
+                .singleElement().asString()
+                .contains("ERROR", "metodo", "GET", "rota", "/api/categorias/{id}", "status", "500",
+                        "duracaoMs", "tipoExcecao", "java.lang.IllegalStateException", "stackTrace");
+        assertThat(saida.getAll()).doesNotContain("mensagem-privada", "valor-privado", "id-do-cliente");
+    }
+
+    @Test
+    void preservaStatusParaMetodoNaoSuportado() throws Exception {
+        mvc.perform(post("/api/categorias/1"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().exists("X-Request-ID"));
     }
 
     @Test
