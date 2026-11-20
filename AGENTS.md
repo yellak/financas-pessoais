@@ -21,3 +21,9 @@
 - Use `INFO` para resultados relevantes, `WARN` para condições anormais que merecem atenção, `ERROR` para falhas inesperadas e `DEBUG` para diagnóstico detalhado. Aproveite o log HTTP para status esperados e mantenha um único registro por falha.
 - Preserve a privacidade usando identificadores e outros metadados técnicos. Evite incluir dados de formulário, valores de parâmetros SQL, corpos de requisição ou credenciais.
 - Para investigar comandos SQL, use o logger nativo do Hibernate com `LOG_NIVEL_SQL=DEBUG`. O padrão do projeto é `INFO`.
+
+## Logs no frontend
+
+- Use `registrarErro` de `frontend/src/logger.ts` para escrever no console do navegador. Capture erros do Vue em `app.config.errorHandler` e falhas de rede, respostas `5xx` ou JSON inválido em `src/services/`. Registre cada falha uma vez.
+- Inclua só metadados técnicos, como o padrão da rota ou a operação, o status HTTP e o `X-Request-ID` quando disponível. Omita parâmetros da URL, dados de formulário, corpos e detalhes internos das exceções.
+- Exiba erros esperados, como validação e conflito de nome (`409`), apenas na interface com mensagens traduzidas.
