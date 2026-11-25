@@ -1,3 +1,4 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { i18n } from '@/i18n'
 import { registrarErro } from '@/logger'
 
@@ -15,17 +16,37 @@ interface ProblemaApi {
   erros?: Record<string, string>
 }
 
-async function requisitar<T>(operacao: string, caminho = '', opcoes: RequestInit = {}): Promise<T> {
+async function requisitar<T>(
+  operacao: string,
+  caminho = '',
+  opcoes: { method?: string; body?: string } = {},
+): Promise<T> {
+  const rota = `/api/categorias${caminho}`
+  const headers = {
+    Accept: 'application/json',
+    'Accept-Language': i18n.global.locale.value,
+    ...(opcoes.body ? { 'Content-Type': 'application/json' } : {}),
+  }
   let resposta: Response
   try {
-    resposta = await fetch(`/api/categorias${caminho}`, {
-      ...opcoes,
-      headers: {
-        Accept: 'application/json',
-        'Accept-Language': i18n.global.locale.value,
-        ...(opcoes.body ? { 'Content-Type': 'application/json' } : {}),
-      },
-    })
+    if (Capacitor.isNativePlatform()) {
+      const url = new URL(import.meta.env.VITE_API_URL ?? '')
+      url.pathname = `${url.pathname.replace(/\/+$/, '')}${rota}`
+
+      const { status, headers: headersResposta, data } = await CapacitorHttp.request({
+        url: url.href,
+        method: opcoes.method,
+        data: opcoes.body,
+        headers,
+      })
+      const corpo = typeof data === 'string' ? data : JSON.stringify(data)
+      resposta = new Response(status === 204 ? null : corpo || null, {
+        status,
+        headers: headersResposta,
+      })
+    } else {
+      resposta = await fetch(rota, { ...opcoes, headers })
+    }
   } catch {
     registrarErro({ evento: 'falha_rede', operacao })
     throw new Error(i18n.global.t('erros.conexao'))

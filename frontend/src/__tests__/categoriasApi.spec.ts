@@ -1,9 +1,17 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { categoriasApi } from '../services/categorias'
 
+vi.mock('@capacitor/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@capacitor/core')>()),
+  CapacitorHttp: { request: vi.fn<typeof CapacitorHttp.request>() },
+}))
+
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.restoreAllMocks()
+  vi.mocked(CapacitorHttp.request).mockReset()
 })
 
 describe('API de categorias', () => {
@@ -85,6 +93,51 @@ describe('API de categorias', () => {
       operacao: 'categorias.listar',
       status: 200,
       requestId: null,
+    })
+  })
+
+  it('envia JSON e idioma pelo HTTP nativo e apresenta o conflito da API', async () => {
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+    vi.stubEnv('VITE_API_URL', 'http://10.0.2.2:8080/')
+    const url = 'http://10.0.2.2:8080/api/categorias'
+    const dados = { nome: 'Mercado', descricao: null, ativa: true }
+    const requisitar = vi.mocked(CapacitorHttp.request).mockResolvedValue({
+      status: 409,
+      headers: { 'Content-Type': 'application/problem+json' },
+      data: '{"detail":"Já existe uma categoria com esse nome."}',
+      url,
+    })
+
+    await expect(categoriasApi.criar(dados)).rejects.toThrow('Já existe uma categoria com esse nome.')
+    expect(requisitar).toHaveBeenCalledExactlyOnceWith({
+      url,
+      method: 'POST',
+      data: JSON.stringify(dados),
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': 'pt-BR',
+        'Content-Type': 'application/json',
+      },
+    })
+  })
+
+  it('aceita uma exclusão sem corpo pelo HTTP nativo', async () => {
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
+    vi.stubEnv('VITE_API_URL', 'http://10.0.2.2:8080')
+    const url = 'http://10.0.2.2:8080/api/categorias/42'
+    const requisitar = vi.mocked(CapacitorHttp.request).mockResolvedValue({
+      status: 204,
+      headers: {},
+      data: '',
+      url,
+    })
+
+    await expect(categoriasApi.excluir(42)).resolves.toBeUndefined()
+    expect(requisitar).toHaveBeenCalledExactlyOnceWith({
+      url,
+      method: 'DELETE',
+      data: undefined,
+      headers: { Accept: 'application/json', 'Accept-Language': 'pt-BR' },
     })
   })
 })

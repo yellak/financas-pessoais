@@ -94,6 +94,88 @@ A navegação fica no botão de três pontos no canto direito do cabeçalho, com
 
 A interface lista as categorias e abre janelas modais para cadastrar, editar ou visualizar os detalhes. Os formulários permitem ativar/desativar categorias e exibem os erros dentro da janela; ao salvar com sucesso, a janela fecha e a lista é atualizada. As janelas podem ser fechadas pelo botão de fechar, por Cancelar ou pela tecla Esc, e ficam bloqueadas durante o salvamento. A exclusão continua exigindo confirmação na lista. Há estados de lista vazia, carregamento, sucesso, erros de validação e falhas de conexão.
 
+### Rodar no Android com Capacitor
+
+O app roda em Android 7.0 (API 24) ou superior. No Linux, você pode preparar o SDK com a Android CLI e gerar o APK de debug pelo terminal com um JDK 21, sem instalar o Android Studio. Os comandos usam caminhos locais e dispensam a configuração de `PATH`, `JAVA_HOME` e `ANDROID_HOME`.
+
+#### 1. Preparar o SDK Android
+
+Se a plataforma `android-36`, o Build Tools `35.0.0` e o `platform-tools` já estiverem instalados no seu SDK, avance para o passo 2. Para preparar o SDK no Linux x86-64, baixe o binário oficial da Android CLI e execute-o pelo caminho completo. Use o mesmo diretório do SDK em todos os passos. No Linux, `sdk` e `Sdk` são nomes diferentes. [Download da Android CLI](https://developer.android.com/tools/agents/android-cli/download)
+
+```bash
+sdk_android="$HOME/Android/sdk"
+cli_android="$HOME/Android/cli/android"
+
+mkdir -p "$HOME/Android/cli" "$sdk_android"
+curl -fL https://dl.google.com/android/cli/latest/linux_x86_64/android -o "$cli_android"
+chmod +x "$cli_android"
+
+"$cli_android" --sdk="$sdk_android" sdk install \
+  platforms/android-36 build-tools/35.0.0 platform-tools
+
+"$cli_android" --sdk="$sdk_android" sdk list
+```
+
+A opção `--sdk` seleciona o diretório para cada execução. Se a CLI pedir a aceitação de licenças, leia os termos e confirme para prosseguir. Confira se os três pacotes aparecem na lista de instalados. [Referência do comando `android sdk install`](https://developer.android.com/tools/agents/android-cli/commands/sdk_install)
+
+#### 2. Confirmar o endereço do backend no celular
+
+Conecte o celular à mesma rede local do computador. Inicie o PostgreSQL e o backend conforme as seções anteriores. No computador, rode `ip -br -4 addr` e anote o IPv4 da interface Wi-Fi ou Ethernet conectada a essa rede.
+
+Se o IP for `192.168.1.50`, abra `http://192.168.1.50:8080/api/categorias` no navegador do celular. Uma resposta JSON, mesmo que seja `[]`, confirma o acesso. Se a página ficar inacessível, verifique se a porta `8080` está acessível pelo Wi-Fi local e se o backend está rodando.
+
+#### 3. Configurar o endereço e gerar o projeto Android
+
+Crie ou edite `frontend/.env.android.local` com o endereço base da API. Substitua o IP de exemplo pelo IP do computador.
+
+```dotenv
+VITE_API_URL=http://192.168.1.50:8080
+```
+
+Da raiz do repositório, execute os comandos abaixo para sincronizar o build com o projeto nativo.
+
+```bash
+cd frontend
+npm ci
+npm run android:sync
+```
+
+O comando gera os arquivos web em `dist-android/` e prepara o projeto local em `android/`. O endereço entra no APK durante o build. Se o IP mudar, atualize `.env.android.local`, sincronize, compile e instale o APK novamente. Para o emulador, o endereço de exemplo em `frontend/.env.example` é `http://10.0.2.2:8080`.
+
+#### 4. Compilar o APK de debug
+
+Crie ou edite `frontend/android/local.properties` com o caminho absoluto do SDK instalado no passo 1.
+
+```properties
+sdk.dir=/home/seu-usuario/Android/sdk
+```
+
+No terminal do passo anterior, compile com o Java 21. O caminho abaixo corresponde ao OpenJDK 21 no Ubuntu x86-64. Ajuste-o se o JDK estiver em outro diretório.
+
+```bash
+cd android
+/usr/lib/jvm/java-21-openjdk-amd64/bin/java \
+  -cp gradle/wrapper/gradle-wrapper.jar \
+  org.gradle.wrapper.GradleWrapperMain :app:assembleDebug
+```
+
+#### 5. Instalar o APK e testar
+
+O arquivo a transferir é o APK gerado no passo 4. A partir da raiz do repositório, ele fica em `frontend/android/app/build/outputs/apk/debug/app-debug.apk`.
+
+**Pelo celular.** Transfira `app-debug.apk` por Bluetooth ou por um serviço de arquivos. Abra o APK no app **Arquivos** e toque em **Instalar**. Se o Android pedir permissão para instalar apps dessa fonte, habilite **Permitir desta fonte** para o app que abriu o APK e volte ao instalador.
+
+**Por USB com `adb`.** Ative as **Opções do desenvolvedor** e a **Depuração USB** no celular. Conecte um cabo USB de dados, desbloqueie o aparelho e autorize a depuração quando o Android pedir. Ainda em `frontend/android`, confira se o aparelho aparece com o status `device` e instale o APK.
+
+```bash
+"$HOME/Android/sdk/platform-tools/adb" devices
+"$HOME/Android/sdk/platform-tools/adb" install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Abra **Finanças pessoais** no celular com o backend rodando e acessível pela rede local. Confira se a tela lista as categorias e teste cadastrar, editar e excluir uma categoria de teste.
+
+O HTTP local é permitido na variante `debug`. Use uma URL HTTPS para builds de distribuição. Se preferir abrir o projeto no Android Studio, rode `npm run android:open` em `frontend/`.
+
 ### Alterar as cores
 
 As cores da interface, incluindo as popups e os indicadores de status, ficam nas variáveis CSS de [`frontend/src/assets/theme.css`](frontend/src/assets/theme.css), importadas pelo CSS global. Há duas paletas: `azul-bebe` (padrão) e `verde` (paleta original). Cada uma tem seu bloco `:root[data-tema='...']`; o primeiro bloco `:root` reúne as cores compartilhadas. O azul bebê também serve de fallback quando o atributo está ausente. Algumas variáveis usadas pelo tema azul bebê:
