@@ -17,11 +17,13 @@ vi.mock('../App.vue', async () => {
 afterEach(() => {
   document.getElementById('app')?.remove()
   history.replaceState(null, '', '/')
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
 it('registra um erro do Vue sem copiar a mensagem e a query da página', async () => {
   const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ id: 1 })))
   history.replaceState(null, '', '/categorias?filtro=privado')
   const destino = document.createElement('div')
   destino.id = 'app'

@@ -20,6 +20,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class CategoriaServiceTest {
 
+    private static final Long USUARIO_ID = 7L;
+
     @Mock
     private CategoriaRepository repository;
 
@@ -34,7 +36,7 @@ class CategoriaServiceTest {
     void criaNormalizandoCamposEAtivandoPorPadrao() {
         when(repository.saveAndFlush(any(Categoria.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CategoriaResponse resposta = service.criar(new CategoriaRequest("  Mercado  ", "  Compras  ", null));
+        CategoriaResponse resposta = service.criar(USUARIO_ID, new CategoriaRequest("  Mercado  ", "  Compras  ", null));
 
         assertThat(resposta.nome()).isEqualTo("Mercado");
         assertThat(resposta.descricao()).isEqualTo("Compras");
@@ -43,9 +45,9 @@ class CategoriaServiceTest {
 
     @Test
     void rejeitaNomeDuplicadoNaCriacao() {
-        when(repository.existsByNomeIgnoreCase("Mercado")).thenReturn(true);
+        when(repository.buscarIdPorUsuarioENome(USUARIO_ID, "Mercado")).thenReturn(Optional.of(1L));
 
-        assertThatThrownBy(() -> service.criar(new CategoriaRequest("Mercado", null, true)))
+        assertThatThrownBy(() -> service.criar(USUARIO_ID, new CategoriaRequest("Mercado", null, true)))
                 .isInstanceOf(NomeCategoriaDuplicadoException.class);
 
         verify(repository, never()).saveAndFlush(any());
@@ -53,24 +55,24 @@ class CategoriaServiceTest {
 
     @Test
     void atualizaCamposIncluindoStatusInativoEDescricaoVazia() {
-        Categoria categoria = new Categoria("Mercado", "Compras", true);
-        when(repository.findById(1L)).thenReturn(Optional.of(categoria));
+        Categoria categoria = new Categoria(USUARIO_ID, "Mercado", "Compras", true);
+        when(repository.findByIdAndUsuarioId(1L, USUARIO_ID)).thenReturn(Optional.of(categoria));
         when(repository.saveAndFlush(categoria)).thenReturn(categoria);
 
-        CategoriaResponse resposta = service.atualizar(1L, new CategoriaRequest("Alimentação", "  ", false));
+        CategoriaResponse resposta = service.atualizar(USUARIO_ID, 1L, new CategoriaRequest("Alimentação", "  ", false));
 
         assertThat(resposta.nome()).isEqualTo("Alimentação");
         assertThat(resposta.descricao()).isNull();
         assertThat(resposta.ativa()).isFalse();
-        verify(repository).existsByNomeIgnoreCaseAndIdNot("Alimentação", 1L);
+        verify(repository).buscarIdPorUsuarioENome(USUARIO_ID, "Alimentação");
     }
 
     @Test
     void rejeitaNomeDeOutraCategoriaNaAtualizacao() {
-        when(repository.findById(1L)).thenReturn(Optional.of(new Categoria("Mercado", null, true)));
-        when(repository.existsByNomeIgnoreCaseAndIdNot("Transporte", 1L)).thenReturn(true);
+        when(repository.findByIdAndUsuarioId(1L, USUARIO_ID)).thenReturn(Optional.of(new Categoria(USUARIO_ID, "Mercado", null, true)));
+        when(repository.buscarIdPorUsuarioENome(USUARIO_ID, "Transporte")).thenReturn(Optional.of(2L));
 
-        assertThatThrownBy(() -> service.atualizar(1L, new CategoriaRequest("Transporte", null, true)))
+        assertThatThrownBy(() -> service.atualizar(USUARIO_ID, 1L, new CategoriaRequest("Transporte", null, true)))
                 .isInstanceOf(NomeCategoriaDuplicadoException.class);
 
         verify(repository, never()).saveAndFlush(any());
@@ -78,35 +80,35 @@ class CategoriaServiceTest {
 
     @Test
     void listaTambemCategoriasInativasEmOrdemDeNome() {
-        when(repository.findAll(Sort.by("nome", "id")))
-                .thenReturn(List.of(new Categoria("Mercado", null, false)));
+        when(repository.findAllByUsuarioId(USUARIO_ID, Sort.by("nome", "id")))
+                .thenReturn(List.of(new Categoria(USUARIO_ID, "Mercado", null, false)));
 
-        assertThat(service.listar()).extracting(CategoriaResponse::ativa).containsExactly(false);
+        assertThat(service.listar(USUARIO_ID)).extracting(CategoriaResponse::ativa).containsExactly(false);
     }
 
     @Test
     void buscaInexistenteRetornaErro() {
-        assertThatThrownBy(() -> service.buscar(99L)).isInstanceOf(CategoriaNaoEncontradaException.class);
+        assertThatThrownBy(() -> service.buscar(USUARIO_ID, 99L)).isInstanceOf(CategoriaNaoEncontradaException.class);
     }
 
     @Test
     void atualizacaoInexistenteRetornaErro() {
-        assertThatThrownBy(() -> service.atualizar(99L, new CategoriaRequest("Mercado", null, true)))
+        assertThatThrownBy(() -> service.atualizar(USUARIO_ID, 99L, new CategoriaRequest("Mercado", null, true)))
                 .isInstanceOf(CategoriaNaoEncontradaException.class);
     }
 
     @Test
     void exclusaoInexistenteRetornaErroSemExcluir() {
-        assertThatThrownBy(() -> service.excluir(99L)).isInstanceOf(CategoriaNaoEncontradaException.class);
+        assertThatThrownBy(() -> service.excluir(USUARIO_ID, 99L)).isInstanceOf(CategoriaNaoEncontradaException.class);
         verify(repository, never()).delete(any());
     }
 
     @Test
     void excluiCategoriaExistente() {
-        Categoria categoria = new Categoria("Mercado", null, true);
-        when(repository.findById(1L)).thenReturn(Optional.of(categoria));
+        Categoria categoria = new Categoria(USUARIO_ID, "Mercado", null, true);
+        when(repository.findByIdAndUsuarioId(1L, USUARIO_ID)).thenReturn(Optional.of(categoria));
 
-        service.excluir(1L);
+        service.excluir(USUARIO_ID, 1L);
 
         verify(repository).delete(categoria);
         verify(repository).flush();

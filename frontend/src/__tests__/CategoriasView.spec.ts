@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import type { Categoria } from '../services/categorias'
 import CategoriasView from '../views/CategoriasView.vue'
 import { i18n } from '@/i18n'
@@ -7,6 +8,13 @@ import { i18n } from '@/i18n'
 const mercado = { id: 1, nome: 'Mercado', descricao: 'Compras do mês', ativa: true }
 const buscar = vi.fn<typeof fetch>()
 let wrapper: VueWrapper | undefined
+const router = createRouter({
+  history: createMemoryHistory(),
+  routes: [
+    { path: '/categorias', component: CategoriasView },
+    { path: '/login', name: 'login', component: { template: '<div />' } },
+  ],
+})
 
 function responder(dados: unknown, status = 200) {
   return new Response(JSON.stringify(dados), { status })
@@ -14,7 +22,7 @@ function responder(dados: unknown, status = 200) {
 
 async function montar(categorias: Categoria[] = [mercado]) {
   buscar.mockResolvedValueOnce(responder(categorias))
-  wrapper = mount(CategoriasView, { attachTo: document.body, global: { plugins: [i18n] } })
+  wrapper = mount(CategoriasView, { attachTo: document.body, global: { plugins: [i18n, router] } })
   await flushPromises()
   return wrapper
 }
@@ -37,9 +45,14 @@ beforeAll(() => {
   })
 })
 
-beforeEach(() => {
+beforeEach(async () => {
   buscar.mockReset()
-  vi.stubGlobal('fetch', buscar)
+  vi.stubGlobal('fetch', (rota: string, opcoes: RequestInit) =>
+    rota === '/api/sessao/csrf'
+      ? Promise.resolve(Response.json({ headerName: 'X-CSRF-TOKEN', token: 'token-teste' }))
+      : buscar(rota, opcoes),
+  )
+  await router.replace('/categorias')
 })
 
 afterEach(() => {
@@ -52,7 +65,7 @@ afterEach(() => {
 describe('Categorias', () => {
   it('mostra carregamento enquanto espera a API', () => {
     buscar.mockReturnValueOnce(new Promise(() => {}))
-    wrapper = mount(CategoriasView, { global: { plugins: [i18n] } })
+    wrapper = mount(CategoriasView, { global: { plugins: [i18n, router] } })
 
     expect(wrapper.get('[role="status"]').text()).toBe('Carregando categorias…')
     expect(wrapper.get('.page-heading button').attributes('disabled')).toBeDefined()
@@ -79,7 +92,7 @@ describe('Categorias', () => {
 
   it('permite tentar novamente quando a conexão falha', async () => {
     buscar.mockRejectedValueOnce(new TypeError('Failed to fetch'))
-    wrapper = mount(CategoriasView, { global: { plugins: [i18n] } })
+    wrapper = mount(CategoriasView, { global: { plugins: [i18n, router] } })
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('Não foi possível conectar ao servidor')
 
@@ -89,6 +102,17 @@ describe('Categorias', () => {
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     expect(wrapper.get('.category-list').text()).toContain('Mercado')
+  })
+
+  it('retorna ao login quando a sessão expira durante a atualização da lista', async () => {
+    const pagina = await montar()
+    buscar.mockResolvedValueOnce(new Response(null, { status: 401 }))
+
+    await pagina.get('.panel-heading button').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.sessao).toBe('expirada')
   })
 
   it('cadastra categoria ativa, envia JSON e limpa o formulário', async () => {
@@ -105,6 +129,7 @@ describe('Categorias', () => {
       '/api/categorias',
       expect.objectContaining({
         method: 'POST',
+        headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'token-teste' }),
         body: JSON.stringify({ nome: 'Mercado', descricao: 'Compras do mês', ativa: true }),
       }),
     )

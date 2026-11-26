@@ -11,10 +11,10 @@ export const i18n = createI18n({
   messages: { 'pt-BR': ptBR },
 })
 
-export function inicializarIdioma() {
+export function inicializarIdioma(chaveTitulo = () => 'app.titulo') {
   watchEffect(() => {
     document.documentElement.lang = i18n.global.locale.value
-    document.title = i18n.global.t('app.titulo')
+    document.title = i18n.global.t(chaveTitulo())
     document
       .querySelector('meta[name="description"]')
       ?.setAttribute('content', i18n.global.t('app.descricao'))

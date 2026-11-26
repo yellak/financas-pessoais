@@ -1,12 +1,12 @@
 # Finanças pessoais
 
-CRUD de categorias em um monorepositório:
+CRUD de categorias e usuários em um monorepositório:
 
-- `backend/`: Java 21, Spring Boot 4.1, Maven, Spring Data JPA e Flyway.
+- `backend/`: Java 21, Spring Boot 4.1, Maven, Spring Data JPA, Spring Security e Flyway.
 - `frontend/`: Vue 3, TypeScript, Vite e Vitest.
 - `compose.yaml`: PostgreSQL 18 com volume persistente e healthcheck.
 
-As categorias são genéricas: um único cadastro, como “Investimento” ou “Outros”, pode ser utilizado tanto para receitas quanto para despesas, sem campo de tipo na categoria.
+Cada conta tem seu próprio cadastro de categorias. Uma categoria como “Investimento” ou “Outros” pode ser utilizada tanto para receitas quanto para despesas.
 
 ## Pré-requisitos
 
@@ -66,7 +66,9 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-API: `http://localhost:8080/api/categorias`. O Flyway aplica `V1__criar_categorias.sql` na inicialização; o Hibernate apenas valida o schema com `ddl-auto=validate`.
+A API fica em `http://localhost:8080/api`. O Flyway aplica as migrations de categorias e usuários na inicialização. O Hibernate valida o schema com `ddl-auto=validate`.
+
+Ao atualizar um banco existente, a migration `V3__vincular_categorias_a_usuarios.sql` apaga as categorias antigas antes de exigir um usuário para cada categoria. As duas operações são feitas na mesma transação. As contas já cadastradas são preservadas.
 
 ### Logs do backend
 
@@ -78,6 +80,8 @@ O formato padrão é texto no terminal. Para emitir JSON, defina `LOG_FORMATO_CO
 
 Para ver o SQL emitido pelo Hibernate, defina `LOG_NIVEL_SQL=DEBUG` no `.env` e reinicie o backend. Para ativar em uma única execução, use `LOG_NIVEL_SQL=DEBUG ./mvnw spring-boot:run` dentro de `backend/`. O logger nativo `org.hibernate.SQL` mostra os comandos com `?` no lugar dos valores dos parâmetros. O SQL emitido durante uma requisição carrega o mesmo `requestId` do log HTTP.
 
+O cadastro bem-sucedido de usuário é registrado após o commit, com o `usuarioId`. O driver PostgreSQL omite detalhes dos erros do servidor que podem conter valores cadastrados.
+
 ## Iniciar o frontend
 
 Em outro terminal a partir da raiz:
@@ -88,7 +92,7 @@ npm ci
 npm run dev
 ```
 
-Abra o endereço exibido pelo Vite, normalmente `http://localhost:5173`. A página inicial abre `/categorias`. O proxy de desenvolvimento encaminha `/api` para `http://localhost:8080`.
+Abra o endereço exibido pelo Vite, normalmente `http://localhost:5173`. A página inicial abre `/categorias` quando há uma sessão válida e redireciona para `/login` quando é preciso entrar. Na tela de acesso, use **Criar conta** para cadastrar e-mail e senha. Depois do cadastro, digite a senha para entrar. Use **Sair** no cabeçalho para encerrar a sessão. O proxy de desenvolvimento encaminha `/api` para `http://localhost:8080`.
 
 A navegação fica no botão de três pontos no canto direito do cabeçalho, com “Categorias” e, ao final, “Tema”. A opção “Tema” expande as escolhas Azul bebê e Verde e indica a seleção atual. A troca é aplicada imediatamente e salva neste navegador. O menu fecha ao acessar Categorias, clicar fora, sair dele pelo teclado ou pressionar Esc.
 
@@ -122,7 +126,7 @@ A opção `--sdk` seleciona o diretório para cada execução. Se a CLI pedir a 
 
 Conecte o celular à mesma rede local do computador. Inicie o PostgreSQL e o backend conforme as seções anteriores. No computador, rode `ip -br -4 addr` e anote o IPv4 da interface Wi-Fi ou Ethernet conectada a essa rede.
 
-Se o IP for `192.168.1.50`, abra `http://192.168.1.50:8080/api/categorias` no navegador do celular. Uma resposta JSON, mesmo que seja `[]`, confirma o acesso. Se a página ficar inacessível, verifique se a porta `8080` está acessível pelo Wi-Fi local e se o backend está rodando.
+Se o IP for `192.168.1.50`, abra `http://192.168.1.50:8080/api/sessao/csrf` no navegador do celular. Uma resposta JSON com o token confirma o acesso. Se a página ficar inacessível, verifique se a porta `8080` está acessível pelo Wi-Fi local e se o backend está rodando.
 
 #### 3. Configurar o endereço e gerar o projeto Android
 
@@ -172,7 +176,7 @@ O arquivo a transferir é o APK gerado no passo 4. A partir da raiz do repositó
 "$HOME/Android/sdk/platform-tools/adb" install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Abra **Finanças pessoais** no celular com o backend rodando e acessível pela rede local. Confira se a tela lista as categorias e teste cadastrar, editar e excluir uma categoria de teste.
+Abra **Finanças pessoais** no celular com o backend rodando e acessível pela rede local. Entre com sua conta e teste cadastrar, editar e excluir uma categoria de teste.
 
 O HTTP local é permitido na variante `debug`. Use uma URL HTTPS para builds de distribuição. Se preferir abrir o projeto no Android Studio, rode `npm run android:open` em `frontend/`.
 
@@ -259,9 +263,11 @@ Os erros da API incluem um `codigo` estável para tratamento pelo cliente; não 
 
 ## API de categorias
 
+A API exige uma [sessão válida](#sessão-do-aplicativo) para todas as operações. O servidor obtém o usuário da sessão e limita o acesso às categorias da conta. Para criar, atualizar ou excluir, envie também o token CSRF.
+
 | Método | Endpoint | Resposta de sucesso |
 | --- | --- | --- |
-| GET | `/api/categorias` | `200`, lista de categorias, inclusive inativas |
+| GET | `/api/categorias` | `200`, lista de categorias da conta, inclusive inativas |
 | GET | `/api/categorias/{id}` | `200`, categoria |
 | POST | `/api/categorias` | `201`, categoria criada e cabeçalho `Location` |
 | PUT | `/api/categorias/{id}` | `200`, categoria atualizada |
@@ -277,20 +283,49 @@ Corpo de criação e atualização:
 }
 ```
 
-- `id` é gerado pelo banco e não deve ser enviado.
-- `nome` é obrigatório, tem no máximo 100 caracteres e recebe remoção de espaços nas extremidades. Nomes são únicos sem distinguir maiúsculas/minúsculas: `Mercado` e `mercado` conflitam, inclusive se a categoria estiver inativa.
+- `id` é gerado pelo banco. Envie apenas os campos de categoria do exemplo.
+- `nome` é obrigatório, tem no máximo 100 caracteres e recebe remoção de espaços nas extremidades. Nomes são únicos por conta sem distinguir maiúsculas de minúsculas. `Mercado` e `mercado` conflitam na mesma conta, inclusive se a categoria estiver inativa.
 - `descricao` é opcional, tem no máximo 500 caracteres e fica `null` quando vazia.
 - `ativa` tem padrão `true` quando omitida ou `null`, tanto no POST quanto no PUT. Envie `false` explicitamente para manter uma categoria inativa em uma atualização.
 - PUT substitui os campos da categoria; DELETE faz exclusão definitiva.
-- Entradas inválidas retornam `400`, categorias inexistentes `404` e nomes duplicados `409`. Erros usam Problem Details com `title` e `detail` traduzidos, `codigo` estável e `erros` por campo quando aplicável. Os códigos atuais são `DADOS_INVALIDOS`, `REQUISICAO_INVALIDA`, `CATEGORIA_NAO_ENCONTRADA`, `CATEGORIA_NOME_DUPLICADO`, `CONFLITO_DADOS` e `ERRO_INTERNO` para falhas inesperadas (`500`).
+- Entradas inválidas retornam `400`, sessão ausente ou expirada `401`, token CSRF inválido ou ausente em sessão autenticada `403`, categoria inexistente ou de outra conta `404` e nome duplicado `409`. Erros usam Problem Details com `title` e `detail` traduzidos, `codigo` estável e `erros` por campo quando aplicável.
 
-Exemplo:
+Exemplo com o cookie da sessão em `cookies.txt` e o token CSRF atualizado em `token_csrf`.
 
 ```bash
 curl -i -X POST http://localhost:8080/api/categorias \
+  -b cookies.txt \
+  -H "X-CSRF-TOKEN: $token_csrf" \
   -H 'Content-Type: application/json' \
   -d '{"nome":"Alimentação","descricao":"Mercado e refeições"}'
 ```
+
+## API de usuários
+
+| Método | Endpoint | Resposta de sucesso |
+| --- | --- | --- |
+| POST | `/api/usuarios` | `201`, conta criada e cabeçalho `Location` |
+| GET | `/api/usuarios/{id}` | `200`, dados da própria conta |
+| PUT | `/api/usuarios/{id}` | `200`, dados atualizados da própria conta |
+| DELETE | `/api/usuarios/{id}` | `204`, conta e suas categorias excluídas definitivamente |
+| GET | `/api/usuarios/csrf` | `200`, token CSRF para a atualização e a exclusão |
+
+Envie `email` e `senha` em JSON no cadastro. Na atualização, envie `email` e inclua `senha` para trocá-la. Se a senha for omitida ou `null`, a senha atual permanece válida. Senhas novas devem ter entre 8 e 128 caracteres e incluir pelo menos uma letra maiúscula, um número e um símbolo. O e-mail é único sem distinguir maiúsculas de minúsculas, inclusive no banco. As respostas de conta contêm `id`, `email` e `criadoEm`. A senha é armazenada como hash Argon2id.
+
+O cadastro é público. Os demais endpoints usam autenticação HTTP Basic do Spring Security, com o e-mail e a senha atuais, e só permitem acessar a própria conta. Use HTTPS fora do ambiente local. Para editar ou excluir, consulte `/api/usuarios/csrf` com as credenciais, preserve o cookie `XSRF-TOKEN` retornado e envie-o junto ao cabeçalho indicado por `headerName`, com o valor de `token` da resposta.
+
+Erros usam Problem Details. Dados inválidos retornam `400`, credenciais ausentes ou inválidas retornam `401`, token CSRF ausente ou inválido retorna `403`, acesso a outro ID retorna `404` e e-mail duplicado retorna `409`.
+
+## Sessão do aplicativo
+
+| Método | Endpoint | Resposta de sucesso |
+| --- | --- | --- |
+| GET | `/api/sessao/csrf` | `200`, token CSRF usado para entrar e sair |
+| POST | `/api/sessao` | `204`, sessão iniciada |
+| GET | `/api/sessao` | `200`, dados da conta autenticada |
+| DELETE | `/api/sessao` | `204`, sessão encerrada |
+
+O `POST` recebe `email` e `senha` como `application/x-www-form-urlencoded`. Para entrar, sair ou gravar categorias, preserve o cookie de sessão `JSESSIONID` recebido pelo cliente e envie o `token` de `/api/sessao/csrf` no cabeçalho indicado por `headerName`. Faça uma nova consulta de CSRF após entrar. A API retorna `401` para credenciais inválidas ou consulta sem sessão válida e `403` para token CSRF ausente ou inválido nas operações de sessão.
 
 ## Testes e builds
 
@@ -303,12 +338,14 @@ Backend, a partir de `backend/`:
 
 `verify` executa os testes e gera o JAR executável em `target/backend-0.0.1-SNAPSHOT.jar`.
 
-Os testes de service verificam as regras de negócio; os de controller verificam HTTP, validação e erros. `CategoriaIntegrationTest` inicia PostgreSQL 18 descartável via Testcontainers, executa a migration e verifica o CRUD completo, unicidade no banco e valor padrão de `ativa`. Não utiliza o banco de desenvolvimento e não exige `docker compose up`.
+Os testes de service verificam as regras de negócio; os de controller verificam HTTP, validação e erros. `CategoriaIntegrationTest` usa PostgreSQL 18 descartável via Testcontainers para verificar a atualização de um banco existente, o CRUD, o isolamento entre contas e as restrições no banco. O banco de teste é iniciado pelo Testcontainers.
 
-Sem acesso ao Docker, os três testes de integração são marcados como **pulados**, enquanto os demais continuam executando. Para executar apenas a integração com Docker disponível:
+`UsuarioIntegrationTest` verifica o cadastro, as operações sobre a própria conta e a sessão com PostgreSQL 18 via Testcontainers, incluindo o hash de senha, a unicidade do e-mail e a proteção da API.
+
+Sem acesso ao Docker, os testes de integração são marcados como **pulados**, enquanto os demais continuam executando. Para executar apenas a integração com Docker disponível:
 
 ```bash
-./mvnw -Dtest=CategoriaIntegrationTest test
+./mvnw -Dtest=CategoriaIntegrationTest,UsuarioIntegrationTest test
 ```
 
 Frontend, a partir de `frontend/`:
@@ -319,8 +356,8 @@ npm run build
 npm run lint
 ```
 
-Os testes usam Vitest e Vue Test Utils, com HTTP simulado, cobrindo cadastro, edição, exclusão confirmada, carregamento e falhas. O build verifica TypeScript e gera arquivos em `dist/`. O script de lint existente aplica correções automáticas.
+Os testes usam Vitest e Vue Test Utils, com HTTP simulado, cobrindo o fluxo de acesso e as operações de categorias. O build verifica TypeScript e gera arquivos em `dist/`. O script de lint existente aplica correções automáticas.
 
-O proxy Vite é uma configuração de desenvolvimento. Ao hospedar `dist/`, configure o servidor para encaminhar `/api` ao backend e servir `index.html` para rotas do Vue Router, como `/categorias`.
+O proxy Vite é uma configuração de desenvolvimento. Ao hospedar `dist/`, configure o servidor para encaminhar `/api` ao backend na mesma origem e servir `index.html` para rotas do Vue Router, como `/login` e `/categorias`.
 
 Se aparecer `Non-resolvable parent POM` junto de `maven.logusinfo.com.br: Name or service not known`, o Maven está tentando acessar um espelho corporativo cujo domínio não foi encontrado. Confirme que o comando foi executado dentro de `backend/`, usando a configuração `.mvn/` deste projeto. No IntelliJ, caso a importação Maven ignore `maven.config`, selecione `backend/.mvn/settings.xml` como arquivo de configurações do Maven deste projeto e recarregue-o.

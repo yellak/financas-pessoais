@@ -15,6 +15,9 @@ public class Categoria {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "usuario_id", nullable = false, updatable = false)
+    private Long usuarioId;
+
     @Column(nullable = false, length = 100)
     private String nome;
 
@@ -27,7 +30,8 @@ public class Categoria {
     protected Categoria() {
     }
 
-    public Categoria(String nome, String descricao, boolean ativa) {
+    public Categoria(Long usuarioId, String nome, String descricao, boolean ativa) {
+        this.usuarioId = usuarioId;
         atualizar(nome, descricao, ativa);
     }
 

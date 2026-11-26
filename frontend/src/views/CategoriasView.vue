@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import AppModal from '../components/AppModal.vue'
 import { categoriasApi, type Categoria, type CategoriaInput } from '../services/categorias'
+import { ErroApi } from '../services/http'
 import { useI18n } from 'vue-i18n'
 
 type ModoModal = 'criar' | 'editar' | 'visualizar'
 
 const { t, locale } = useI18n()
+const router = useRouter()
 const categorias = ref<Categoria[]>([])
 const carregando = ref(true)
 const salvando = ref(false)
@@ -29,7 +32,11 @@ const tituloModal = computed(() => {
   return modoModal.value === 'editar' ? t('categorias.editar') : t('categorias.nova')
 })
 
-function mensagemErro(falha: unknown) {
+async function mensagemErro(falha: unknown) {
+  if (falha instanceof ErroApi && falha.status === 401) {
+    await router.replace({ name: 'login', query: { sessao: 'expirada' } })
+    return ''
+  }
   return falha instanceof Error ? falha.message : t('erros.inesperado')
 }
 
@@ -40,7 +47,7 @@ async function carregar() {
   try {
     categorias.value = await categoriasApi.listar()
   } catch (falha) {
-    erro.value = mensagemErro(falha)
+    erro.value = await mensagemErro(falha)
     falhaCarregamento.value = true
   } finally {
     carregando.value = false
@@ -105,7 +112,7 @@ async function salvar() {
     fecharModal()
     confirmarExclusaoId.value = null
   } catch (falha) {
-    erroModal.value = mensagemErro(falha)
+    erroModal.value = await mensagemErro(falha)
   } finally {
     salvando.value = false
   }
@@ -128,7 +135,7 @@ async function excluir(categoria: Categoria) {
     confirmarExclusaoId.value = null
     sucesso.value = t('categorias.sucesso.excluida')
   } catch (falha) {
-    erro.value = mensagemErro(falha)
+    erro.value = await mensagemErro(falha)
   } finally {
     excluindoId.value = null
   }

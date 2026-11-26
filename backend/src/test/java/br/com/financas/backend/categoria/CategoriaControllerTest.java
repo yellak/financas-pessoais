@@ -5,6 +5,10 @@ import java.util.UUID;
 
 import br.com.financas.backend.common.ApiExceptionHandler;
 import br.com.financas.backend.common.IdiomaConfiguration;
+import br.com.financas.backend.usuario.UsuarioAutenticado;
+import br.com.financas.backend.usuario.UsuarioRepository;
+import br.com.financas.backend.usuario.UsuarioSecurityConfiguration;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,14 +22,19 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,9 +45,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CategoriaController.class)
-@Import({ApiExceptionHandler.class, IdiomaConfiguration.class})
+@Import({ApiExceptionHandler.class, IdiomaConfiguration.class, UsuarioSecurityConfiguration.class})
 @ExtendWith(OutputCaptureExtension.class)
 class CategoriaControllerTest {
+
+    private static final Long USUARIO_ID = 7L;
 
     @Autowired
     private MockMvc mvc;
@@ -46,10 +57,26 @@ class CategoriaControllerTest {
     @MockitoBean
     private CategoriaService service;
 
+    @MockitoBean
+    private UsuarioRepository usuarios;
+
+    private UsuarioAutenticado usuario;
+
+    @BeforeEach
+    void autenticar() {
+        usuario = mock(UsuarioAutenticado.class);
+        when(usuario.id()).thenReturn(USUARIO_ID);
+        when(usuarios.existsById(USUARIO_ID)).thenReturn(true);
+    }
+
+    private ResultActions requisitar(MockHttpServletRequestBuilder requisicao) throws Exception {
+        return mvc.perform(requisicao.with(user(usuario)).with(csrf().asHeader()));
+    }
+
     @Test
     void listaCategorias() throws Exception {
-        when(service.listar()).thenReturn(List.of(new CategoriaResponse(1L, "Mercado", null, true)));
-        mvc.perform(get("/api/categorias"))
+        when(service.listar(USUARIO_ID)).thenReturn(List.of(new CategoriaResponse(1L, "Mercado", null, true)));
+        requisitar(get("/api/categorias"))
                 .andExpect(status().isOk())
                 .andExpect(header().exists("X-Request-ID"))
                 .andExpect(jsonPath("$[0].nome").value("Mercado"));
@@ -57,28 +84,28 @@ class CategoriaControllerTest {
 
     @Test
     void buscaCategoria() throws Exception {
-        when(service.buscar(1L)).thenReturn(new CategoriaResponse(1L, "Mercado", null, true));
-        mvc.perform(get("/api/categorias/1"))
+        when(service.buscar(USUARIO_ID, 1L)).thenReturn(new CategoriaResponse(1L, "Mercado", null, true));
+        requisitar(get("/api/categorias/1"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(1));
     }
 
     @Test
     void criaComLocationEStatus201() throws Exception {
-        when(service.criar(any())).thenReturn(new CategoriaResponse(1L, "Mercado", null, true));
-        mvc.perform(post("/api/categorias").contentType(MediaType.APPLICATION_JSON)
+        when(service.criar(eq(USUARIO_ID), any())).thenReturn(new CategoriaResponse(1L, "Mercado", null, true));
+        requisitar(post("/api/categorias").contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"nome":"Mercado"}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "http://localhost/api/categorias/1"))
                 .andExpect(jsonPath("$.ativa").value(true));
-        verify(service).criar(new CategoriaRequest("Mercado", null, true));
+        verify(service).criar(USUARIO_ID, new CategoriaRequest("Mercado", null, true));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"{}", "{\"nome\":null}", "{\"nome\":\"   \"}"})
     void rejeitaNomeAusenteOuEmBranco(String json) throws Exception {
-        mvc.perform(post("/api/categorias").accept(MediaType.APPLICATION_JSON).contentType(MediaType.APPLICATION_JSON).content(json))
+        requisitar(post("/api/categorias").accept(MediaType.APPLICATION_JSON).contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Dados inválidos"))
                 .andExpect(jsonPath("$.detail").value("Revise os campos informados."))
@@ -90,7 +117,7 @@ class CategoriaControllerTest {
     @Test
     void rejeitaNomeEDescricaoMuitoLongos() throws Exception {
         String json = "{\"nome\":\"" + "a".repeat(101) + "\",\"descricao\":\"" + "b".repeat(501) + "\"}";
-        mvc.perform(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content(json))
+        requisitar(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erros.nome").value("O nome deve ter no máximo 100 caracteres."))
                 .andExpect(jsonPath("$.erros.descricao").value("A descrição deve ter no máximo 500 caracteres."));
@@ -99,7 +126,7 @@ class CategoriaControllerTest {
 
     @Test
     void rejeitaJsonMalformado() throws Exception {
-        mvc.perform(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content("{"))
+        requisitar(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content("{"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Requisição inválida"))
                 .andExpect(jsonPath("$.detail").value("Verifique o JSON e os tipos dos valores informados."))
@@ -108,13 +135,13 @@ class CategoriaControllerTest {
 
     @Test
     void rejeitaIdInvalido() throws Exception {
-        mvc.perform(get("/api/categorias/abc")).andExpect(status().isBadRequest());
+        requisitar(get("/api/categorias/abc")).andExpect(status().isBadRequest());
     }
 
     @Test
     void categoriaAusenteRetorna404() throws Exception {
-        when(service.buscar(99L)).thenThrow(new CategoriaNaoEncontradaException(99L));
-        mvc.perform(get("/api/categorias/99"))
+        when(service.buscar(USUARIO_ID, 99L)).thenThrow(new CategoriaNaoEncontradaException(99L));
+        requisitar(get("/api/categorias/99"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.title").value("Categoria não encontrada"))
                 .andExpect(jsonPath("$.detail").value("Categoria de ID 99 não encontrada."))
@@ -124,8 +151,8 @@ class CategoriaControllerTest {
     @ParameterizedTest
     @ValueSource(strings = {"pt-BR", "en-US", "fr-FR,pt;q=0.8"})
     void mantemPortuguesParaIdiomasAindaNaoSuportados(String idioma) throws Exception {
-        when(service.buscar(1234L)).thenThrow(new CategoriaNaoEncontradaException(1234L));
-        mvc.perform(get("/api/categorias/1234").header("Accept-Language", idioma))
+        when(service.buscar(USUARIO_ID, 1234L)).thenThrow(new CategoriaNaoEncontradaException(1234L));
+        requisitar(get("/api/categorias/1234").header("Accept-Language", idioma))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("Categoria de ID 1234 não encontrada."))
                 .andExpect(jsonPath("$.codigo").value("CATEGORIA_NAO_ENCONTRADA"));
@@ -133,8 +160,8 @@ class CategoriaControllerTest {
 
     @Test
     void nomeDuplicadoRetorna409() throws Exception {
-        when(service.criar(any())).thenThrow(new NomeCategoriaDuplicadoException());
-        mvc.perform(post("/api/categorias").accept(MediaType.APPLICATION_JSON).contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Mercado\"}"))
+        when(service.criar(eq(USUARIO_ID), any())).thenThrow(new NomeCategoriaDuplicadoException());
+        requisitar(post("/api/categorias").accept(MediaType.APPLICATION_JSON).contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Mercado\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(header().exists("X-Request-ID"))
                 .andExpect(jsonPath("$.title").value("Nome já utilizado"))
@@ -144,9 +171,9 @@ class CategoriaControllerTest {
 
     @Test
     void correlacionaErroInesperadoAoLogSemExporDados(CapturedOutput saida) throws Exception {
-        when(service.buscar(1L)).thenThrow(new IllegalStateException("mensagem-privada"));
+        when(service.buscar(USUARIO_ID, 1L)).thenThrow(new IllegalStateException("mensagem-privada"));
 
-        var resposta = mvc.perform(get("/api/categorias/1")
+        var resposta = requisitar(get("/api/categorias/1")
                         .queryParam("filtro", "valor-privado")
                         .header("X-Request-ID", "id-do-cliente"))
                 .andExpect(status().isInternalServerError())
@@ -166,15 +193,15 @@ class CategoriaControllerTest {
 
     @Test
     void preservaStatusParaMetodoNaoSuportado() throws Exception {
-        mvc.perform(post("/api/categorias/1"))
+        requisitar(post("/api/categorias/1"))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(header().exists("X-Request-ID"));
     }
 
     @Test
     void concorrenciaNoBancoRetorna409SemExporSql() throws Exception {
-        when(service.criar(any())).thenThrow(new DataIntegrityViolationException("SQL privado"));
-        mvc.perform(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Mercado\"}"))
+        when(service.criar(eq(USUARIO_ID), any())).thenThrow(new DataIntegrityViolationException("SQL privado"));
+        requisitar(post("/api/categorias").contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Mercado\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Conflito de dados"))
                 .andExpect(jsonPath("$.codigo").value("CONFLITO_DADOS"))
@@ -183,29 +210,29 @@ class CategoriaControllerTest {
 
     @Test
     void atualizaCategoria() throws Exception {
-        when(service.atualizar(eq(1L), any())).thenReturn(new CategoriaResponse(1L, "Lazer", "Passeios", false));
-        mvc.perform(put("/api/categorias/1").contentType(MediaType.APPLICATION_JSON)
+        when(service.atualizar(eq(USUARIO_ID), eq(1L), any())).thenReturn(new CategoriaResponse(1L, "Lazer", "Passeios", false));
+        requisitar(put("/api/categorias/1").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nome\":\"Lazer\",\"descricao\":\"Passeios\",\"ativa\":false}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.ativa").value(false));
     }
 
     @Test
     void validaTambemNaAtualizacao() throws Exception {
-        mvc.perform(put("/api/categorias/1").contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"\"}"))
+        requisitar(put("/api/categorias/1").contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"\"}"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(service);
     }
 
     @Test
     void excluiSemCorpoNaResposta() throws Exception {
-        mvc.perform(delete("/api/categorias/1"))
+        requisitar(delete("/api/categorias/1"))
                 .andExpect(status().isNoContent()).andExpect(content().string(""));
-        verify(service).excluir(1L);
+        verify(service).excluir(USUARIO_ID, 1L);
     }
 
     @Test
     void excluirAusenteRetorna404() throws Exception {
-        doThrow(new CategoriaNaoEncontradaException(99L)).when(service).excluir(99L);
-        mvc.perform(delete("/api/categorias/99")).andExpect(status().isNotFound());
+        doThrow(new CategoriaNaoEncontradaException(99L)).when(service).excluir(USUARIO_ID, 99L);
+        requisitar(delete("/api/categorias/99")).andExpect(status().isNotFound());
     }
 }

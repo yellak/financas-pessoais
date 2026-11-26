@@ -31,6 +31,38 @@
     "conexao": "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
     "operacao": "Não foi possível concluir a operação. Tente novamente."
   },
+  "autenticacao": {
+    "tituloPagina": "Entrar · Finanças pessoais",
+    "email": "E-mail",
+    "senha": "Senha",
+    "senhaTamanho": "Use de {min} a {max} caracteres.",
+    "senhaFormato": "Inclua pelo menos uma letra maiúscula, um número e um símbolo.",
+    "senhaOrientacao": "Use de {min} a {max} caracteres, com pelo menos uma letra maiúscula, um número e um símbolo.",
+    "sair": "Sair",
+    "saindo": "Saindo…",
+    "login": {
+      "titulo": "Entrar na sua conta",
+      "acao": "Entrar",
+      "enviando": "Entrando…",
+      "orientacao": "Ainda não tem conta?"
+    },
+    "cadastro": {
+      "titulo": "Criar uma conta",
+      "acao": "Criar conta",
+      "enviando": "Criando conta…",
+      "orientacao": "Já tem uma conta?",
+      "sucesso": "Conta criada. Digite sua senha para entrar."
+    },
+    "erros": {
+      "emailObrigatorio": "Informe seu e-mail.",
+      "emailInvalido": "Informe um endereço de e-mail válido.",
+      "senhaObrigatoria": "Informe sua senha.",
+      "credenciais": "E-mail ou senha inválidos.",
+      "sessao": "Não foi possível confirmar sua sessão. Tente entrar novamente.",
+      "sessaoExpirada": "Sua sessão expirou. Entre novamente para acessar suas categorias.",
+      "tentativaExpirada": "A tentativa expirou. Tente novamente."
+    }
+  },
   "categorias": {
     "chamada": "SEU DINHEIRO, MAIS ORGANIZADO",
     "titulo": "Categorias",

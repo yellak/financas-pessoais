@@ -14,6 +14,14 @@ afterEach(() => {
   vi.mocked(CapacitorHttp.request).mockReset()
 })
 
+const csrf = { headerName: 'X-CSRF-TOKEN', token: 'token-teste' }
+
+function simularFetchComCsrf(buscar: typeof fetch) {
+  vi.stubGlobal('fetch', (rota: string, opcoes: RequestInit) =>
+    rota === '/api/sessao/csrf' ? Promise.resolve(Response.json(csrf)) : buscar(rota, opcoes),
+  )
+}
+
 describe('API de categorias', () => {
   it('envia o idioma da interface para a API', async () => {
     const buscar = vi.fn<typeof fetch>().mockResolvedValue(new Response('[]'))
@@ -28,8 +36,7 @@ describe('API de categorias', () => {
 
   it('apresenta erros de validação por campo', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.stubGlobal(
-      'fetch',
+    simularFetchComCsrf(
       vi.fn().mockResolvedValue(
         new Response(
           JSON.stringify({
@@ -71,7 +78,7 @@ describe('API de categorias', () => {
 
   it('registra a operação de uma falha de rede sem copiar dados da requisição', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Detalhe privado')))
+    simularFetchComCsrf(vi.fn().mockRejectedValue(new TypeError('Detalhe privado')))
 
     await expect(
       categoriasApi.atualizar(42, { nome: 'Nome privado', descricao: null, ativa: true }),
@@ -101,15 +108,31 @@ describe('API de categorias', () => {
     vi.stubEnv('VITE_API_URL', 'http://10.0.2.2:8080/')
     const url = 'http://10.0.2.2:8080/api/categorias'
     const dados = { nome: 'Mercado', descricao: null, ativa: true }
-    const requisitar = vi.mocked(CapacitorHttp.request).mockResolvedValue({
-      status: 409,
-      headers: { 'Content-Type': 'application/problem+json' },
-      data: '{"detail":"Já existe uma categoria com esse nome."}',
-      url,
-    })
+    const requisitar = vi
+      .mocked(CapacitorHttp.request)
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        data: csrf,
+        url: 'http://10.0.2.2:8080/api/sessao/csrf',
+      })
+      .mockResolvedValueOnce({
+        status: 409,
+        headers: { 'Content-Type': 'application/problem+json' },
+        data: '{"detail":"Já existe uma categoria com esse nome."}',
+        url,
+      })
 
-    await expect(categoriasApi.criar(dados)).rejects.toThrow('Já existe uma categoria com esse nome.')
-    expect(requisitar).toHaveBeenCalledExactlyOnceWith({
+    await expect(categoriasApi.criar(dados)).rejects.toThrow(
+      'Já existe uma categoria com esse nome.',
+    )
+    expect(requisitar).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        url: 'http://10.0.2.2:8080/api/sessao/csrf',
+      }),
+    )
+    expect(requisitar).toHaveBeenNthCalledWith(2, {
       url,
       method: 'POST',
       data: JSON.stringify(dados),
@@ -117,6 +140,7 @@ describe('API de categorias', () => {
         Accept: 'application/json',
         'Accept-Language': 'pt-BR',
         'Content-Type': 'application/json',
+        [csrf.headerName]: csrf.token,
       },
     })
   })
@@ -125,19 +149,37 @@ describe('API de categorias', () => {
     vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true)
     vi.stubEnv('VITE_API_URL', 'http://10.0.2.2:8080')
     const url = 'http://10.0.2.2:8080/api/categorias/42'
-    const requisitar = vi.mocked(CapacitorHttp.request).mockResolvedValue({
-      status: 204,
-      headers: {},
-      data: '',
-      url,
-    })
+    const requisitar = vi
+      .mocked(CapacitorHttp.request)
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        data: csrf,
+        url: 'http://10.0.2.2:8080/api/sessao/csrf',
+      })
+      .mockResolvedValueOnce({
+        status: 204,
+        headers: {},
+        data: '',
+        url,
+      })
 
     await expect(categoriasApi.excluir(42)).resolves.toBeUndefined()
-    expect(requisitar).toHaveBeenCalledExactlyOnceWith({
+    expect(requisitar).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        url: 'http://10.0.2.2:8080/api/sessao/csrf',
+      }),
+    )
+    expect(requisitar).toHaveBeenNthCalledWith(2, {
       url,
       method: 'DELETE',
       data: undefined,
-      headers: { Accept: 'application/json', 'Accept-Language': 'pt-BR' },
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': 'pt-BR',
+        [csrf.headerName]: csrf.token,
+      },
     })
   })
 })

@@ -6,7 +6,9 @@ import { i18n, inicializarIdioma } from './i18n'
 import { registrarErro } from './logger'
 
 inicializarTema()
-inicializarIdioma()
+inicializarIdioma(() =>
+  router.currentRoute.value.name === 'login' ? 'autenticacao.tituloPagina' : 'app.titulo',
+)
 
 const app = createApp(App)
 
