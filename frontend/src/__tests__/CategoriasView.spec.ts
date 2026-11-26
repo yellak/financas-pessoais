@@ -1,6 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import type { Categoria } from '../services/categorias'
 import CategoriasView from '../views/CategoriasView.vue'
+import { i18n } from '@/i18n'
 
 const mercado = { id: 1, nome: 'Mercado', descricao: 'Compras do mês', ativa: true }
 const buscar = vi.fn<typeof fetch>()
@@ -10,12 +12,30 @@ function responder(dados: unknown, status = 200) {
   return new Response(JSON.stringify(dados), { status })
 }
 
-async function montar(categorias = [mercado]) {
+async function montar(categorias: Categoria[] = [mercado]) {
   buscar.mockResolvedValueOnce(responder(categorias))
-  wrapper = mount(CategoriasView)
+  wrapper = mount(CategoriasView, { attachTo: document.body, global: { plugins: [i18n] } })
   await flushPromises()
   return wrapper
 }
+
+// O jsdom não implementa os métodos nativos de dialog.
+beforeAll(() => {
+  Object.defineProperties(HTMLDialogElement.prototype, {
+    showModal: {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.open = true
+      },
+    },
+    close: {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.open = false
+      },
+    },
+  })
+})
 
 beforeEach(() => {
   buscar.mockReset()
@@ -25,16 +45,18 @@ beforeEach(() => {
 afterEach(() => {
   wrapper?.unmount()
   wrapper = undefined
+  document.body.innerHTML = ''
   vi.unstubAllGlobals()
 })
 
-describe('Categorias de gastos', () => {
+describe('Categorias', () => {
   it('mostra carregamento enquanto espera a API', () => {
     buscar.mockReturnValueOnce(new Promise(() => {}))
-    wrapper = mount(CategoriasView)
+    wrapper = mount(CategoriasView, { global: { plugins: [i18n] } })
 
     expect(wrapper.get('[role="status"]').text()).toBe('Carregando categorias…')
-    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.page-heading button').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('dialog').exists()).toBe(false)
   })
 
   it('lista categorias com descrição e status', async () => {
@@ -44,6 +66,8 @@ describe('Categorias de gastos', () => {
     expect(pagina.get('.category-list').text()).toContain('Mercado')
     expect(pagina.get('.category-list').text()).toContain('Compras do mês')
     expect(pagina.get('.badge').text()).toBe('Ativa')
+    expect(pagina.find('form').exists()).toBe(false)
+    expect(pagina.find('dialog').exists()).toBe(false)
   })
 
   it('mostra um estado vazio', async () => {
@@ -55,7 +79,7 @@ describe('Categorias de gastos', () => {
 
   it('permite tentar novamente quando a conexão falha', async () => {
     buscar.mockRejectedValueOnce(new TypeError('Failed to fetch'))
-    wrapper = mount(CategoriasView)
+    wrapper = mount(CategoriasView, { global: { plugins: [i18n] } })
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('Não foi possível conectar ao servidor')
 
@@ -70,6 +94,8 @@ describe('Categorias de gastos', () => {
   it('cadastra categoria ativa, envia JSON e limpa o formulário', async () => {
     const pagina = await montar([])
     buscar.mockResolvedValueOnce(responder(mercado, 201))
+    await pagina.get('.page-heading button').trigger('click')
+    expect(pagina.get('dialog h2').text()).toBe('Nova categoria')
     await pagina.get('#nome').setValue('  Mercado  ')
     await pagina.get('#descricao').setValue('Compras do mês')
     await pagina.get('form').trigger('submit')
@@ -83,12 +109,15 @@ describe('Categorias de gastos', () => {
       }),
     )
     expect(pagina.get('[role="status"]').text()).toBe('Categoria cadastrada com sucesso.')
-    expect((pagina.get('#nome').element as HTMLInputElement).value).toBe('')
+    expect(pagina.find('dialog').exists()).toBe(false)
     expect(pagina.findAll('.category-item')).toHaveLength(1)
+    await pagina.get('.page-heading button').trigger('click')
+    expect((pagina.get('#nome').element as HTMLInputElement).value).toBe('')
   })
 
   it('rejeita nome composto apenas por espaços sem chamar a API', async () => {
     const pagina = await montar([])
+    await pagina.get('.page-heading button').trigger('click')
     await pagina.get('#nome').setValue('   ')
     await pagina.get('form').trigger('submit')
 
@@ -101,11 +130,14 @@ describe('Categorias de gastos', () => {
     buscar.mockResolvedValueOnce(
       responder({ detail: 'Já existe uma categoria com esse nome.' }, 409),
     )
+    await pagina.get('.page-heading button').trigger('click')
     await pagina.get('#nome').setValue('Mercado')
     await pagina.get('form').trigger('submit')
     await flushPromises()
 
-    expect(pagina.get('[role="alert"]').text()).toBe('Já existe uma categoria com esse nome.')
+    expect(pagina.get('dialog [role="alert"]').text()).toBe(
+      'Já existe uma categoria com esse nome.',
+    )
     expect((pagina.get('#nome').element as HTMLInputElement).value).toBe('Mercado')
     expect(pagina.findAll('.category-item')).toHaveLength(1)
   })
@@ -114,6 +146,7 @@ describe('Categorias de gastos', () => {
     const pagina = await montar()
     buscar.mockResolvedValueOnce(responder({ ...mercado, nome: 'Alimentação', ativa: false }))
     await pagina.get('[aria-label="Editar Mercado"]').trigger('click')
+    expect(pagina.get('dialog h2').text()).toBe('Editar categoria')
     expect((pagina.get('#nome').element as HTMLInputElement).value).toBe('Mercado')
     await pagina.get('#nome').setValue('Alimentação')
     await pagina.get('#ativa').setValue(false)
@@ -127,24 +160,106 @@ describe('Categorias de gastos', () => {
     expect(pagina.get('.category-list').text()).toContain('Alimentação')
     expect(pagina.get('.badge').text()).toBe('Inativa')
     expect(pagina.get('[role="status"]').text()).toBe('Categoria atualizada com sucesso.')
+    expect(pagina.find('dialog').exists()).toBe(false)
   })
 
   it('cancela edição sem alterar a categoria', async () => {
     const pagina = await montar()
     await pagina.get('[aria-label="Editar Mercado"]').trigger('click')
     await pagina.get('#nome').setValue('Outro nome')
-    const cancelar = pagina.findAll('button').find((botao) => botao.text() === 'Cancelar edição')!
-    await cancelar.trigger('click')
+    await pagina.get('dialog .secondary').trigger('click')
 
-    expect(pagina.get('#formulario-titulo').text()).toBe('Nova categoria')
+    expect(pagina.find('dialog').exists()).toBe(false)
     expect(pagina.get('.category-list').text()).toContain('Mercado')
     expect(buscar).toHaveBeenCalledTimes(1)
+  })
+
+  it('visualiza os detalhes em uma janela sem campos editáveis', async () => {
+    const pagina = await montar()
+    await pagina.get('[aria-label="Visualizar Mercado"]').trigger('click')
+
+    const janela = pagina.get('dialog[open]')
+    expect(janela.get('h2').text()).toBe('Detalhes da categoria')
+    expect(janela.text()).toContain('Mercado')
+    expect(janela.text()).toContain('Compras do mês')
+    expect(janela.get('.badge').text()).toBe('Ativa')
+    expect(janela.find('input, textarea, form').exists()).toBe(false)
+    await janela.get('.category-details button').trigger('click')
+    expect(pagina.find('dialog').exists()).toBe(false)
+    expect(buscar).toHaveBeenCalledTimes(1)
+  })
+
+  it('visualiza categoria inativa sem descrição', async () => {
+    const pagina = await montar([{ ...mercado, descricao: null, ativa: false }])
+    await pagina.get('[aria-label="Visualizar Mercado"]').trigger('click')
+
+    expect(pagina.get('dialog').text()).toContain('Sem descrição')
+    expect(pagina.get('dialog .badge').text()).toBe('Inativa')
+  })
+
+  it('foca o formulário ao abrir e devolve o foco ao fechar com Esc', async () => {
+    const pagina = await montar()
+    const botao = pagina.get('.page-heading button')
+    ;(botao.element as HTMLButtonElement).focus()
+    await botao.trigger('click')
+
+    expect(document.activeElement).toBe(pagina.get('#nome').element)
+    expect(document.documentElement.style.overflow).toBe('hidden')
+    await pagina.get('dialog').trigger('cancel')
+
+    expect(pagina.find('dialog').exists()).toBe(false)
+    expect(document.activeElement).toBe(botao.element)
+    expect(document.documentElement.style.overflow).toBe('')
+  })
+
+  it('fecha pelo botão superior e descarta alterações não salvas', async () => {
+    const pagina = await montar()
+    await pagina.get('[aria-label="Editar Mercado"]').trigger('click')
+    await pagina.get('#nome').setValue('Nome não salvo')
+    await pagina.get('[aria-label="Fechar janela"]').trigger('click')
+    await pagina.get('[aria-label="Editar Mercado"]').trigger('click')
+
+    expect((pagina.get('#nome').element as HTMLInputElement).value).toBe('Mercado')
+    expect(buscar).toHaveBeenCalledTimes(1)
+  })
+
+  it('impede fechamento e envio duplicado enquanto salva', async () => {
+    const pagina = await montar([])
+    let concluir!: (resposta: Response) => void
+    buscar.mockReturnValueOnce(
+      new Promise((resolve) => {
+        concluir = resolve
+      }),
+    )
+    await pagina.get('.page-heading button').trigger('click')
+    await pagina.get('#nome').setValue('Mercado')
+    await pagina.get('form').trigger('submit')
+
+    expect(pagina.get('dialog').attributes('aria-busy')).toBe('true')
+    expect(pagina.get('button[type="submit"]').text()).toBe('Salvando…')
+    expect(pagina.get('[aria-label="Fechar janela"]').attributes('disabled')).toBeDefined()
+    expect(pagina.get('dialog .secondary').attributes('disabled')).toBeDefined()
+    await pagina.get('dialog').trigger('cancel')
+    await pagina.get('form').trigger('submit')
+    expect(pagina.find('dialog[open]').exists()).toBe(true)
+    expect(buscar).toHaveBeenCalledTimes(2)
+
+    concluir(responder(mercado, 201))
+    await flushPromises()
+    expect(pagina.find('dialog').exists()).toBe(false)
+    expect(pagina.findAll('.category-item')).toHaveLength(1)
   })
 
   it('aguarda confirmação e permite cancelar a exclusão', async () => {
     const pagina = await montar()
     await pagina.get('[aria-label="Excluir Mercado"]').trigger('click')
     expect(pagina.get('.delete-confirmation').text()).toContain('Esta ação é definitiva')
+    expect(pagina.get('.delete-confirmation p').text()).toBe(
+      'Excluir “Mercado”? Esta ação é definitiva.',
+    )
+    expect(pagina.get('.delete-confirmation').attributes('aria-label')).toBe(
+      'Confirmar exclusão de Mercado',
+    )
     await pagina.get('.delete-confirmation .secondary').trigger('click')
 
     expect(pagina.find('.delete-confirmation').exists()).toBe(false)

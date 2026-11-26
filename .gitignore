@@ -12,6 +12,9 @@
 *.iws
 *.ipr
 
+# Integração local do Codex com o IntelliJ
+/.codex/config.toml
+
 # Backend (Java / Maven)
 target/
 
